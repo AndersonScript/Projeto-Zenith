@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zenith — assistente pessoal com avatar</title>
+<meta name="description" content="Zenith: assistente pessoal com avatar que roda no seu computador, conversa, programa, cria e só age com a sua aprovação.">
+<link rel="icon" href="logo.png">
+<style>
+@font-face{font-family:Poppins;font-weight:400;font-display:swap;src:url(fonts/poppins-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:Poppins;font-weight:500;font-display:swap;src:url(fonts/poppins-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:Poppins;font-weight:600;font-display:swap;src:url(fonts/poppins-latin-600-normal.woff2) format("woff2")}
+:root{--bg:#0e0e12;--panel:#15151a;--panel2:#1a1a21;--line:#24242c;--text:#ececf1;--muted:#a0a0ac;--accent:#f5a257;--on-accent:#1a1208;--link:#f5a257;color-scheme:dark light}
+@media (prefers-color-scheme:light){:root{--bg:#f7f4ee;--panel:#fffdf9;--panel2:#f1ece1;--line:#e3dccd;--text:#1c1a17;--muted:#5f5a52;--accent:#f0993f;--on-accent:#1a1208;--link:#a35a12}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.65 Poppins,"Segoe UI",system-ui,sans-serif}
+.w{max-width:1040px;margin:0 auto;padding:0 22px}
+h1,h2,h3{margin:0;line-height:1.25}
+a{color:var(--link)}
+a:focus-visible,button:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+.topo{display:flex;align-items:center;gap:12px;padding:22px 0}
+.topo img{width:40px;height:40px;border-radius:10px}
+.topo b{font-weight:600;letter-spacing:.16em}
+.hero{display:grid;grid-template-columns:1fr 1.15fr;gap:40px;align-items:center;padding:28px 0 56px}
+.hero h1{font-size:2.5rem;font-weight:600;letter-spacing:-.01em}
+.hero p{color:var(--muted);font-size:1.08rem;margin:16px 0 24px}
+.botao{display:inline-block;background:var(--accent);color:var(--on-accent);padding:13px 24px;border-radius:12px;font-weight:600;text-decoration:none;border:0}
+.botao.off{background:var(--panel2);color:var(--muted);border:1px dashed var(--line)}
+.sec{margin-left:12px;color:var(--text)}
+figure{margin:0}
+figure img{width:100%;height:auto;display:block;border-radius:14px;border:1px solid var(--line)}
+figcaption{color:var(--muted);font-size:.85rem;margin-top:8px}
+section{padding:30px 0}
+h2{font-size:1.5rem;font-weight:600;margin-bottom:6px}
+.lead{color:var(--muted);margin:0 0 22px}
+.grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.card h3{font-size:1rem;font-weight:600;color:var(--link);margin-bottom:4px}
+.card p{margin:0;color:var(--muted);font-size:.95rem}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.caixa{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+.meta{color:var(--muted);font-size:.9rem;margin:10px 0 0}
+code{font:.85rem Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:2px 8px;word-break:break-all}
+ol,ul{padding-left:22px;margin:8px 0}
+li{margin:4px 0}
+.aviso{border-left:4px solid var(--accent);padding-left:14px;color:var(--muted);margin:14px 0 0}
+.versao{border-top:1px solid var(--line);padding:14px 0}
+.versao:first-of-type{border-top:0}
+footer{color:var(--muted);font-size:.9rem;padding:34px 0 60px;border-top:1px solid var(--line);margin-top:30px}
+@media (max-width:820px){.hero,.duo{grid-template-columns:1fr}.hero h1{font-size:2rem}}
+</style>
+</head>
+<body>
+<div class="w">
+<div class="topo"><img src="logo.png" alt=""><b>ZENITH</b></div>
+
+<div class="hero">
+<div>
+<h1>Uma assistente com avatar que mora no seu computador.</h1>
+<p>Conversa, explica, programa, cria imagens e vídeos e olha a tela quando você pede. Só age com a sua aprovação e guarda tudo no seu computador.</p>
+<span id="cta"><a class="botao" href="#baixar">Baixar para Windows</a></span><a class="sec" href="#recursos">Ver o que ela faz</a>
+</div>
+<figure><img src="img/central.webp" width="1280" height="760" alt="Prévia da tela principal do Zenith: lista de conversas à esquerda, chat no centro e o avatar na coluna da direita."><figcaption>Prévia do novo design, ainda em desenvolvimento.</figcaption></figure>
+</div>
+
+<section id="recursos"><h2>O que ela faz</h2><p class="lead">Você traz a sua chave de uma IA (há opções grátis, com limite diário) e o Zenith faz o resto no seu computador.</p>
+<div class="grade">
+<div class="card"><h3>Conversa e explica</h3><p>Funciona com várias IAs (Gemini, Groq, OpenRouter, OpenAI) ou com uma IA local. Se uma falhar, ela troca e diz o motivo.</p></div>
+<div class="card"><h3>Programa e cria arquivos</h3><p>Escreve programas, sites e documentos, e só roda algo depois que você aprova.</p></div>
+<div class="card"><h3>Olha a tela e a câmera</h3><p>Só quando você pede, e com aviso visível na tela enquanto observa.</p></div>
+<div class="card"><h3>Imagens e vídeos</h3><p>Corta, junta, legenda e narra vídeos. Imagens por serviços que você liga.</p></div>
+<div class="card"><h3>Biblioteca</h3><p>Mostra o que ela criou (programas por linguagem, sites, imagens, vídeos) e no que ela se baseia (seus documentos e as regras dela).</p></div>
+<div class="card"><h3>Avatar 3D que se mexe</h3><p>Gesticula, muda de expressão e fica sempre visível na tela. Movimentos como pulo e dança estão em teste.</p></div>
+</div></section>
+
+<section><h2>Biblioteca Zenith</h2><p class="lead">Tudo o que ela criou, e tudo no que ela se baseia, num só lugar e sem sair do seu computador.</p>
+<div class="duo">
+<figure><img src="img/biblioteca-criou.webp" width="1280" height="782" loading="lazy" alt="Biblioteca: abas Programas, Projetos completos, Sites, Imagens, Vídeos e Documentos, com os programas agrupados por linguagem."><figcaption>O que ela criou, por assunto e linguagem.</figcaption></figure>
+<figure><img src="img/biblioteca-base.webp" width="1280" height="851" loading="lazy" alt="Biblioteca: documentos guardados com botão de tirar da biblioteca e as regras da Bíblia com botão de ler."><figcaption>O que ela usa como base: seus documentos e as regras dela.</figcaption></figure>
+</div></section>
+
+<section id="baixar"><h2>Baixar</h2>
+<div class="caixa" id="ultima"><noscript>Ative o JavaScript para ver a versão mais recente.</noscript><p>Carregando...</p></div>
+<p class="aviso">O Launcher ainda não tem assinatura digital, então o Windows pode mostrar "Windows protegeu seu PC" (e alguns antivírus estranham programas que baixam outros programas). Confira se o código SHA-256 é igual ao do arquivo que você baixou.</p>
+</section>
+
+<section><h2>Privacidade e segurança</h2>
+<div class="grade">
+<div class="card"><h3>Nada roda sem você</h3><p>Toda ação sensível pede a sua aprovação, e existe uma lista do que ela nunca faz.</p></div>
+<div class="card"><h3>Tudo fica no seu computador</h3><p>Chaves, conversas e memória não saem daqui. Não há telemetria.</p></div>
+<div class="card"><h3>Sua chave, seu limite</h3><p>As IAs externas são cobradas ou limitadas pelo próprio serviço. Alguns modelos grátis podem usar o que você enviar: não mande dado pessoal neles.</p></div>
+</div></section>
+
+<section><h2>Como começar</h2><ol>
+<li><strong>Baixe o Launcher</strong> (um programa pequeno) e confira o código SHA-256.</li>
+<li>Ao abrir, ele <strong>pergunta antes</strong> e prepara tudo: um Python só do Zenith (sem administrador, sem mexer no seu) e as bibliotecas. São alguns GB; a primeira vez demora.</li>
+<li>Em Configurações, cole a chave de uma IA (Gemini e Groq têm plano grátis) e clique em "Testar todas as chaves".</li>
+<li>Nas próximas aberturas, o Launcher vê se há versão nova e <strong>pergunta</strong> se você quer atualizar; a versão antiga fica guardada para voltar.</li>
+</ol></section>
+
+<section id="versoes"><h2>Todas as versões</h2><p>Carregando...</p></section>
+
+<footer>Código aberto: <a id="repo" href="#">GitHub</a>. Dúvidas e problemas: aba Issues do repositório. Fonte Poppins sob a licença SIL OFL.</footer>
+</div>
+<script>
+(function(){
+  function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
+  function seguro(u){return typeof u==="string"&&/^https:\/\//.test(u)&&!/SEU_USUARIO|SEU_PROJETO/.test(u)?u:null}
+  function mb(n){return n>0?Math.round(n/1e6)+" MB":""}
+  function pegar(url){return fetch(url,{cache:"no-cache"}).then(function(r){if(!r.ok)throw 0;return r.json()})}
+  function publicado(m){var l=m&&m.launcher;return !!(l&&seguro(l.url)&&l.sha256&&!/PREENCHER/.test(l.sha256))}
+  function baixar(m){
+    var box=document.getElementById("ultima"),cta=document.getElementById("cta");box.replaceChildren();
+    if(publicado(m)){
+      var l=m.launcher,a=el("a","botao","Baixar o Launcher do Zenith "+m.versao);a.href="/baixar";box.appendChild(a);
+      box.appendChild(el("p","meta","Windows 10/11 (64 bits)"+(m.data&&!/PREENCHER/.test(m.data)?" - "+m.data:"")+(mb(l.tamanho)?" - Launcher "+mb(l.tamanho):"")));
+      var h=el("p","meta","SHA-256 do Launcher: ");h.appendChild(el("code","",l.sha256));box.appendChild(h);
+      var c=el("p","meta","Para conferir, abra o Prompt de Comando na pasta de Downloads e digite: ");c.appendChild(el("code","","certutil -hashfile "+(l.arquivo||"ZenithLauncher.exe")+" SHA256"));box.appendChild(c);
+      cta.replaceChildren(Object.assign(el("a","botao","Baixar para Windows"),{href:"#baixar"}));
+    }else{
+      box.appendChild(el("span","botao off","Instalador em preparação"));
+      box.appendChild(el("p","meta","Pré-lançamento: a primeira versão pública ainda não foi publicada."+(m&&m.versao?" A versão em desenvolvimento é a "+m.versao+".":"")));
+      cta.replaceChildren(Object.assign(el("a","botao","Em breve para Windows"),{href:"#baixar"}));
+    }
+  }
+  function lista(d){
+    var repo=seguro(d.repositorio),r=document.getElementById("repo");if(repo)r.href=repo;else r.replaceWith(document.createTextNode("GitHub (em breve)"));
+    var box=document.getElementById("versoes");box.replaceChildren(el("h2","","Todas as versões"));
+    (d.versoes||[]).forEach(function(x){
+      var b=el("div","versao");b.appendChild(el("strong","","Zenith "+x.versao+" - "+(x.data||"")));
+      var ul=el("ul");(x.notas||[]).forEach(function(n){ul.appendChild(el("li","",n))});b.appendChild(ul);box.appendChild(b)});
+    if(!(d.versoes||[]).length)box.appendChild(el("p","meta","Nenhuma versão publicada ainda."));
+  }
+  pegar("latest.json").then(baixar).catch(function(){baixar(null)});
+  pegar("versions.json").then(lista).catch(function(){lista({versoes:[]})});
+})();
+</script>
+</body>
+</html>
