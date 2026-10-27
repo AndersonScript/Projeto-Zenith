@@ -3,7 +3,7 @@
   "redirects": [
     {
       "source": "/baixar",
-      "destination": "https://github.com/AndersonScript/Proketo-Zenith/releases/latest/download/ZenithLauncher.exe",
+      "destination": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/ZenithLauncher.exe",
       "permanent": false
     }
   ],

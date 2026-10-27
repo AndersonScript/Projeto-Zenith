@@ -1,0 +1,12 @@
+{
+  "manifesto": "https://projeto-zenith-five.vercel.app/latest.json",
+  "hosts": [
+    "projeto-zenith-five.vercel.app",
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+    "www.python.org",
+    "python.org"
+  ],
+  "permitir_local": false
+}

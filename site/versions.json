@@ -1,5 +1,23 @@
 {
-  "atualizado": "26/10/2026",
-  "repositorio": "https://github.com/AndersonScript/Proketo-Zenith",
-  "versoes": []
+  "atualizado": "2026-10-26",
+  "repositorio": "https://github.com/AndersonScript/Projeto-Zenith",
+  "versoes": [
+    {
+      "versao": "1.9",
+      "data": "2026-10-26",
+      "estado": "estável",
+      "notas": [
+        "v1.9: as duas linhas de trabalho juntas, uma tela so de chaves, um dono so do /conversa, 1498 testes OK"
+      ],
+      "pacote": {
+        "tamanho": 75145337,
+        "sha256": "b7b658b21f8e702160ac69b9f85e1bb9dfcb2a5f8f6f84c915c2c96e9aed74fc"
+      },
+      "launcher": {
+        "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.9/ZenithLauncher.exe",
+        "sha256": "d50007f404a97fede1372cc9c03747ae67659e9d81fd8dc09ffafb2e3a558ce0",
+        "tamanho": 12598766
+      }
+    }
+  ]
 }

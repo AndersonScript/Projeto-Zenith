@@ -1,24 +1,27 @@
 {
   "versao": "1.9",
-  "data": "PREENCHER",
-  "notas": "Modelo: rode tools/gerar_release.py, que sobrescreve este arquivo com os valores verdadeiros.",
+  "data": "2026-10-26",
+  "notas": "v1.9: as duas linhas de trabalho juntas, uma tela so de chaves, um dono so do /conversa, 1498 testes OK",
   "pacote": {
     "arquivo": "Zenith_app_1.9.zip",
-    "url": "https://github.com/AndersonScript/Proketo-Zenith/releases/download/v1.9/Zenith_app_1.9.zip",
-    "sha256": "PREENCHER",
-    "tamanho": 0
+    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.9/Zenith_app_1.9.zip",
+    "sha256": "b7b658b21f8e702160ac69b9f85e1bb9dfcb2a5f8f6f84c915c2c96e9aed74fc",
+    "tamanho": 75145337
   },
   "python": {
     "versao": "3.12.10",
     "url": "https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe",
-    "sha256": "PREENCHER",
-    "tamanho": 0
+    "sha256": "67b5635e80ea51072b87941312d00ec8927c4db9ba18938f7ad2d27b328b95fb",
+    "tamanho": 26964224
   },
+  "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.9/Zenith_app_1.9.zip",
+  "sha256": "b7b658b21f8e702160ac69b9f85e1bb9dfcb2a5f8f6f84c915c2c96e9aed74fc",
+  "tamanho": 75145337,
   "launcher": {
     "versao": "1.0.0",
     "arquivo": "ZenithLauncher.exe",
-    "url": "https://github.com/AndersonScript/Proketo-Zenith/releases/download/v1.9/ZenithLauncher.exe",
-    "sha256": "PREENCHER",
-    "tamanho": 0
+    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.9/ZenithLauncher.exe",
+    "sha256": "d50007f404a97fede1372cc9c03747ae67659e9d81fd8dc09ffafb2e3a558ce0",
+    "tamanho": 12598766
   }
 }
