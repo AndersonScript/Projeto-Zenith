@@ -1,20 +1,25 @@
 {
-  "atualizado": "2026-10-26",
+  "atualizado": "2026-10-29",
   "repositorio": "https://github.com/AndersonScript/Projeto-Zenith",
   "versoes": [
     {
-      "versao": "1.9",
-      "data": "2026-10-26",
+      "versao": "1.0",
+      "data": "2026-10-29",
       "estado": "estável",
       "notas": [
-        "v1.9: as duas linhas de trabalho juntas, uma tela so de chaves, um dono so do /conversa, 1498 testes OK"
+        "Zenith 1.0 Oficial: primeira versao publica",
+        "tela de chaves com teste de conexao",
+        "conversa por voz continua",
+        "imagem colada aparece no chat",
+        "limite de comando ajustavel (60 s, ate 30 min)",
+        "avatares prontos de terceiros fora da distribuicao"
       ],
       "pacote": {
-        "tamanho": 75145337,
-        "sha256": "b7b658b21f8e702160ac69b9f85e1bb9dfcb2a5f8f6f84c915c2c96e9aed74fc"
+        "tamanho": 75178695,
+        "sha256": "0bd67412be4fd6634adec00cb6663db670a0f8c9345277bbc8fc94249e60987a"
       },
       "launcher": {
-        "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.9/ZenithLauncher.exe",
+        "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/ZenithLauncher.exe",
         "sha256": "d50007f404a97fede1372cc9c03747ae67659e9d81fd8dc09ffafb2e3a558ce0",
         "tamanho": 12598766
       }

@@ -1,12 +1,12 @@
 {
-  "versao": "1.9",
-  "data": "2026-10-26",
-  "notas": "v1.9: as duas linhas de trabalho juntas, uma tela so de chaves, um dono so do /conversa, 1498 testes OK",
+  "versao": "1.0",
+  "data": "2026-10-29",
+  "notas": "Zenith 1.0 Oficial: primeira versao publica\ntela de chaves com teste de conexao\nconversa por voz continua\nimagem colada aparece no chat\nlimite de comando ajustavel (60 s, ate 30 min)\navatares prontos de terceiros fora da distribuicao",
   "pacote": {
-    "arquivo": "Zenith_app_1.9.zip",
-    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.9/Zenith_app_1.9.zip",
-    "sha256": "b7b658b21f8e702160ac69b9f85e1bb9dfcb2a5f8f6f84c915c2c96e9aed74fc",
-    "tamanho": 75145337
+    "arquivo": "Zenith_app_1.0.zip",
+    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith_app_1.0.zip",
+    "sha256": "0bd67412be4fd6634adec00cb6663db670a0f8c9345277bbc8fc94249e60987a",
+    "tamanho": 75178695
   },
   "python": {
     "versao": "3.12.10",
@@ -14,13 +14,13 @@
     "sha256": "67b5635e80ea51072b87941312d00ec8927c4db9ba18938f7ad2d27b328b95fb",
     "tamanho": 26964224
   },
-  "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.9/Zenith_app_1.9.zip",
-  "sha256": "b7b658b21f8e702160ac69b9f85e1bb9dfcb2a5f8f6f84c915c2c96e9aed74fc",
-  "tamanho": 75145337,
+  "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith_app_1.0.zip",
+  "sha256": "0bd67412be4fd6634adec00cb6663db670a0f8c9345277bbc8fc94249e60987a",
+  "tamanho": 75178695,
   "launcher": {
     "versao": "1.0.0",
     "arquivo": "ZenithLauncher.exe",
-    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.9/ZenithLauncher.exe",
+    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/ZenithLauncher.exe",
     "sha256": "d50007f404a97fede1372cc9c03747ae67659e9d81fd8dc09ffafb2e3a558ce0",
     "tamanho": 12598766
   }
