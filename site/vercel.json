@@ -5,6 +5,11 @@
       "source": "/baixar",
       "destination": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/ZenithLauncher.exe",
       "permanent": false
+    },
+    {
+      "source": "/limpar",
+      "destination": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/LimparZenith.exe",
+      "permanent": false
     }
   ],
   "headers": [

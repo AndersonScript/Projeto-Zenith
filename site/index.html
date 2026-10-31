@@ -82,6 +82,7 @@ footer{color:var(--muted);font-size:.9rem;padding:34px 0 60px;border-top:1px sol
 <section id="baixar"><h2>Baixar</h2>
 <div class="caixa" id="ultima"><noscript>Ative o JavaScript para ver a versão mais recente.</noscript><p>Carregando...</p></div>
 <p class="aviso">O Launcher ainda não tem assinatura digital, então o Windows pode mostrar "Windows protegeu seu PC" (e alguns antivírus estranham programas que baixam outros programas). Confira se o código SHA-256 é igual ao do arquivo que você baixou.</p>
+<p class="aviso"><strong>Quer apagar só uma coisa?</strong> O <em>LimparZenith</em> abre uma janela com caixinhas: histórico, memória, chaves de API, fotos e vídeos, programas que ela criou, temporários — ou desinstalar o Zenith inteiro, sem deixar resquício.</p>
 </section>
 
 <section><h2>Privacidade e segurança</h2>
@@ -116,6 +117,12 @@ footer{color:var(--muted);font-size:.9rem;padding:34px 0 60px;border-top:1px sol
       box.appendChild(el("p","meta","Windows 10/11 (64 bits)"+(m.data&&!/PREENCHER/.test(m.data)?" - "+m.data:"")+(mb(l.tamanho)?" - Launcher "+mb(l.tamanho):"")));
       var h=el("p","meta","SHA-256 do Launcher: ");h.appendChild(el("code","",l.sha256));box.appendChild(h);
       var c=el("p","meta","Para conferir, abra o Prompt de Comando na pasta de Downloads e digite: ");c.appendChild(el("code","","certutil -hashfile "+(l.arquivo||"ZenithLauncher.exe")+" SHA256"));box.appendChild(c);
+      var lm=m.limpar;
+      if(lm&&seguro(lm.url)&&lm.sha256&&!/PREENCHER/.test(lm.sha256)){
+        var la=el("a","botao sec","Limpar ou desinstalar o Zenith");la.href="/limpar";la.style.marginTop="0.6rem";box.appendChild(la);
+        box.appendChild(el("p","meta","Programa separado ("+mb(lm.tamanho)+"): apague só o histórico, só as chaves, só as fotos e vídeos, só os programas que ela criou — ou tudo de uma vez."));
+        var lh=el("p","meta","SHA-256 do Limpar: ");lh.appendChild(el("code","",lm.sha256));box.appendChild(lh);
+      }
       cta.replaceChildren(Object.assign(el("a","botao","Baixar para Windows"),{href:"#baixar"}));
     }else{
       box.appendChild(el("span","botao off","Instalador em preparação"));
