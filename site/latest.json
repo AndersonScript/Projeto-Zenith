@@ -1,6 +1,6 @@
 {
   "versao": "1.0",
-  "data": "2026-10-30",
+  "data": "2026-10-31",
   "notas": "correcao do print dos programas executados\n/tft aceita wifi:auto e wifi:IP\nvarios anexos com miniatura e X em cada um\npacote sem VRM de terceiros\ndocs de atualizacao e de teste\nLauncher 1.0.1: corrige o erro de certificado (CERTIFICATE_VERIFY_FAILED) que travava o download\nLimparZenith: apagar so o historico, so as chaves, so as fotos/videos, so os programas ou desinstalar tudo",
   "pacote": {
     "arquivo": "Zenith_app_1.0.zip",
