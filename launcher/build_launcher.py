@@ -51,6 +51,9 @@ def main(argv=None) -> int:
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--noconsole",
            "--name", "ZenithLauncher", "--distpath", str(saida), "--workpath", str(saida / "_build"),
            "--specpath", str(saida / "_build"),
+           # certifi vai DENTRO do .exe: sem ele, Windows com raízes de certificado antigas
+           # quebra o download com CERTIFICATE_VERIFY_FAILED (caso real de 30/10/2026).
+           "--collect-data", "certifi",
            "--add-data", f"{cfg_arq}{os.pathsep}.", str(RAIZ / "launcher" / "zenith_instalador.py")]
     if icone.exists():
         cmd[cmd.index("--name"):cmd.index("--name")] = ["--icon", str(icone)]
@@ -63,6 +66,23 @@ def main(argv=None) -> int:
     h = hashlib.sha256(exe.read_bytes()).hexdigest()
     print(f"\nPronto: {exe}\nTamanho: {exe.stat().st_size}\nSHA-256: {h}\n"
           f"Suba o .exe na Release do GitHub (nome exato: ZenithLauncher.exe) e rode tools/gerar_release.py --launcher-exe.")
+
+    # ---- LimparZenith.exe: janela para apagar por partes ou desinstalar tudo ----
+    cmd_limpar = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--noconsole",
+                  "--name", "LimparZenith", "--distpath", str(saida), "--workpath", str(saida / "_build2"),
+                  "--specpath", str(saida / "_build2"), "--paths", str(RAIZ / "launcher"),
+                  str(RAIZ / "launcher" / "limpar.py")]
+    if icone.exists():
+        cmd_limpar[cmd_limpar.index("--name"):cmd_limpar.index("--name")] = ["--icon", str(icone)]
+    print("Rodando:", " ".join(cmd_limpar))
+    r2 = subprocess.run(cmd_limpar, cwd=str(RAIZ))
+    exe_limpar = saida / "LimparZenith.exe"
+    if r2.returncode == 0 and exe_limpar.exists():
+        h2 = hashlib.sha256(exe_limpar.read_bytes()).hexdigest()
+        print(f"\nPronto: {exe_limpar}\nTamanho: {exe_limpar.stat().st_size}\nSHA-256: {h2}\n"
+              f"Suba os dois .exe na Release (ZenithLauncher.exe e LimparZenith.exe).")
+    else:
+        print("\nO LimparZenith.exe não saiu (o Launcher principal saiu). Veja o erro do PyInstaller acima.")
     return 0
 
 

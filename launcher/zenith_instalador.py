@@ -26,6 +26,7 @@ import json
 import os
 import re
 import shutil
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -36,7 +37,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-VERSAO_LAUNCHER = "1.0.0"
+VERSAO_LAUNCHER = "1.0.1"      # 1.0.1: download com certificado que funciona + LimparZenith (apagar por partes/desinstalar)
 MANIFESTO_PADRAO = "https://SEU_PROJETO.vercel.app/latest.json"
 HOSTS_PADRAO = ("SEU_PROJETO.vercel.app", "github.com", "objects.githubusercontent.com",
                 "release-assets.githubusercontent.com", "www.python.org", "python.org")
@@ -105,12 +106,62 @@ class _RedirectSeguro(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+_CTX_SSL = None
+
+
+def contexto_ssl():
+    """Contexto de HTTPS que confia no Windows E no certifi (que vai DENTRO do .exe).
+
+    Por que existe (caso real, 30/10/2026): o download parava em
+    `CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate` — o Windows do usuário
+    não tinha a raiz do certificado do site (Windows sem atualização de raízes). O certifi traz a
+    lista de raízes junto com o programa, então o download funciona mesmo assim.
+    """
+    global _CTX_SSL
+    if _CTX_SSL is not None:
+        return _CTX_SSL
+    try:
+        ctx = ssl.create_default_context()          # começa com o que o Windows confia
+    except Exception:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = True
+        ctx.verify_mode = ssl.CERT_REQUIRED
+    arquivos = []
+    try:
+        import certifi                                # instalado no build (--collect-data certifi)
+        arquivos.append(certifi.where())
+    except Exception:
+        pass
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    arquivos += [base / "certifi" / "cacert.pem", base / "cacert.pem"]
+    for arq in arquivos:
+        try:
+            if arq and Path(arq).is_file():
+                ctx.load_verify_locations(cafile=str(arq))
+        except Exception:
+            continue
+    _CTX_SSL = ctx
+    return ctx
+
+
+def _erro_de_rede(e: Exception) -> ErroInstalador:
+    """Traduz erro de download. SSL ganha uma explicação própria (não é 'sem internet')."""
+    motivo = getattr(e, "reason", e)
+    if isinstance(motivo, ssl.SSLError) or isinstance(e, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in str(e):
+        return ErroInstalador(
+            f"Falha ao baixar: o Windows não reconheceu o certificado do site ({e}).",
+            "Isso quase sempre é relógio/data errados no computador ou raízes de certificado antigas. "
+            "Confira a data e a hora, tente de novo — e, se repetir, baixe pelo navegador no site do Zenith.")
+    return ErroInstalador(f"Falha ao baixar: {e}", "Confira a internet e o espaço em disco.")
+
+
 def abrir_url(url: str, hosts, permitir_local: bool = False, tempo: int = TEMPO_REDE):
     """Abre a URL com o abridor seguro. Devolve o objeto de resposta (use .read(n))."""
     if not host_permitido(url, hosts, permitir_local):
         raise ErroInstalador(f"Endereço não permitido: {url}",
                              "O Launcher só baixa dos endereços da lista (site do Zenith, GitHub e python.org).")
-    abridor = urllib.request.build_opener(_RedirectSeguro(hosts, permitir_local))
+    abridor = urllib.request.build_opener(_RedirectSeguro(hosts, permitir_local),
+                                          urllib.request.HTTPSHandler(context=contexto_ssl()))
     abridor.addheaders = [("User-Agent", f"ZenithLauncher/{VERSAO_LAUNCHER}")]
     return abridor.open(url, timeout=tempo)
 
@@ -163,6 +214,8 @@ def ler_manifesto(url: str, hosts, permitir_local: bool = False, abrir=None) -> 
     except ErroInstalador:
         raise
     except Exception as e:
+        if isinstance(getattr(e, "reason", e), ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in str(e):
+            raise _erro_de_rede(e)
         raise ErroInstalador(f"Não consegui falar com o site do Zenith: {e}", "Confira a internet e tente de novo.")
     if len(bruto) > LIMITE_MANIFESTO:
         raise ErroInstalador("O latest.json veio grande demais — não vou usar.")
@@ -216,7 +269,7 @@ def baixar(url: str, destino, sha256: str, max_bytes: int, hosts, progresso=None
     except ErroInstalador:
         raise
     except Exception as e:
-        raise ErroInstalador(f"Falha ao baixar: {e}", "Confira a internet e o espaço em disco.")
+        raise _erro_de_rede(e)
     finally:
         try:
             if parte.exists():
@@ -577,6 +630,257 @@ def limpar_antigo(atual):
         pass
 
 
+# ============================================================================ apagar por partes / desinstalar
+# Pedido do Anderson (30/10/2026): além do "resetar tudo", poder apagar SÓ uma coisa —
+# só o histórico, só as chaves, só as fotos/vídeos, só os programas que ela criou.
+PEDACOS = {
+    "historico": "Conversas e histórico (conversas, notas, lembretes, log de ações)",
+    "memoria": "Memória de longo prazo (o que ela aprendeu e guardou sobre você)",
+    "chaves": "Chaves de API (Gemini, Groq, OpenAI, OpenRouter...)",
+    "fotos": "Fotos e vídeos que ela gerou",
+    "programas": "Programas/habilidades que ela criou",
+    "temporarios": "Temporários e rascunhos",
+    "pessoal": "Arquivos que você escreveu (ZENITH.md, bíblia extra)",
+}
+# Chaves de API zeradas no settings.json (mesma lista que brain/zenith_reset.py usa)
+CAMPOS_DE_CHAVE = (
+    "gemini_key", "openai_key", "openrouter_key", "groq_key", "tavily_api_key",
+    "custom_api_url", "custom_api_key", "custom_api_model", "elevenlabs_key", "elevenlabs_voice_id",
+)
+
+
+def caminhos_do_app(raiz) -> dict:
+    """Onde ficam as coisas do Zenith instalado: app, config, e a pasta de dados escolhida."""
+    raiz = Path(raiz)
+    app = raiz / "app"
+    config = app / "config"
+    dados = raiz / "dados"
+    for arq in (config / "settings.json", config / "instalacao.json"):
+        try:
+            bruto = json.loads(arq.read_text(encoding="utf-8-sig"))
+            escolhido = str(bruto.get("data_root_path") or "").strip()
+            if escolhido:
+                dados = Path(os.path.expandvars(escolhido))
+                break
+        except Exception:
+            continue
+    return {"raiz": raiz, "app": app, "config": config, "dados": dados,
+            "temp": dados / "temp", "creations": dados / "creations",
+            "memory": dados / "memory_db", "skills": app / "skills"}
+
+
+def _tamanho(p: Path) -> int:
+    try:
+        if p.is_file():
+            return p.stat().st_size
+        return sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+    except OSError:
+        return 0
+
+
+def _apagar(alvo, relatorio: dict):
+    alvo = Path(alvo)
+    if not alvo.exists():
+        return False
+    tamanho = _tamanho(alvo)
+    try:
+        if alvo.is_dir():
+            shutil.rmtree(alvo)
+        else:
+            alvo.unlink()
+    except OSError as e:
+        relatorio["falhas"].append(f"{alvo.name}: {e}")
+        return False
+    relatorio["bytes"] += tamanho
+    relatorio["itens"] += 1
+    return True
+
+
+def _esvaziar_pasta(pasta, relatorio: dict):
+    pasta = Path(pasta)
+    if not pasta.is_dir():
+        return
+    for item in list(pasta.iterdir()):
+        _apagar(item, relatorio)
+
+
+def _zerar_chaves(config: Path, relatorio: dict):
+    arq = Path(config) / "settings.json"
+    try:
+        dados = json.loads(arq.read_text(encoding="utf-8-sig"))
+    except Exception:
+        return
+    if not isinstance(dados, dict):
+        return
+    for campo in CAMPOS_DE_CHAVE:
+        if campo in dados:
+            dados[campo] = ""
+    dados["ai_endpoints"] = []
+    try:
+        tmp = arq.with_name("settings.json.tmp")
+        tmp.write_text(json.dumps(dados, indent=4, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp, arq)
+        relatorio["itens"] += 1
+    except OSError as e:
+        relatorio["falhas"].append(f"settings.json: {e}")
+
+
+def categorias_validas() -> list:
+    return sorted(PEDACOS)
+
+
+def ler_categorias(texto) -> list:
+    """'historico, chaves' -> ['chaves','historico']. '*' = tudo menos o programa; nome errado é recusado."""
+    bruto = str(texto or "").replace(";", ",").replace(" ", ",")
+    itens = [p for p in (x.strip().lower() for x in bruto.split(",")) if p]
+    if "*" in itens or "tudo" in itens:
+        return categorias_validas()
+    for nome in itens:
+        if nome not in PEDACOS:
+            raise ErroInstalador(f"Não conheço a opção '{nome}'.",
+                                 "Use: " + ", ".join(categorias_validas()) + ".")
+    return sorted(set(itens))
+
+
+def limpar_pedacos(raiz, categorias, log=print) -> dict:
+    """Apaga SÓ as categorias pedidas. Devolve {itens, bytes, falhas, categorias}. Nunca levanta por erro de disco."""
+    categorias = list(dict.fromkeys(categorias))
+    if "tudo" in categorias or "*" in categorias:      # atalho: tudo, menos o programa em si
+        categorias = categorias_validas()
+    caminhos = caminhos_do_app(raiz)
+    rel = {"itens": 0, "bytes": 0, "falhas": [], "categorias": categorias}
+    for cat in categorias:
+        if cat == "historico":
+            for nome in ("conversations.json", "zenith_notas.jsonl", "zenith_acoes_log.jsonl",
+                         "zenith_acoes_log.1.jsonl", "zenith_lembretes.json", "zenith_voz_debug.log"):
+                _apagar(caminhos["config"] / nome, rel)
+            _apagar(caminhos["app"] / "zenith_log.txt", rel)
+        elif cat == "memoria":
+            _esvaziar_pasta(caminhos["memory"], rel)
+            _esvaziar_pasta(caminhos["app"] / "memory_db", rel)
+        elif cat == "pessoal":
+            for nome in ("ZENITH.md", "biblia_extra.md"):
+                _apagar(caminhos["config"] / nome, rel)
+        elif cat == "chaves":
+            _zerar_chaves(caminhos["config"], rel)
+        elif cat == "fotos":
+            _esvaziar_pasta(caminhos["creations"], rel)
+            _esvaziar_pasta(caminhos["app"] / "creations", rel)
+        elif cat == "programas":
+            _esvaziar_pasta(caminhos["skills"], rel)
+            _esvaziar_pasta(caminhos["dados"] / "skills", rel)
+        elif cat == "temporarios":
+            _esvaziar_pasta(caminhos["temp"], rel)
+            _apagar(caminhos["app"] / "_zenith_voice_temp.mp3", rel)
+            _apagar(caminhos["raiz"] / "tmp", rel)
+    log(f"[Zenith] Limpeza ({', '.join(categorias)}): {rel['itens']} item(ns), "
+        f"{rel['bytes'] / 1024 / 1024:.1f} MB liberados" + (f"; {len(rel['falhas'])} não deu: {rel['falhas'][:3]}" if rel["falhas"] else "."))
+    return rel
+
+
+def fechar_zenith(raiz, executar=executar_comando):
+    """Encerra o Zenith/Corpo que estiver rodando de dentro da pasta (senão o Windows não deixa apagar)."""
+    if os.name != "nt":
+        return False
+    try:
+        codigo, _ = executar(["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                              script_encerrar_pasta(raiz)], None, 60)
+        return codigo == 0
+    except Exception:
+        return False
+
+
+def _pode_apagar(p: Path) -> bool:
+    """Trava de segurança: nunca apagar raiz de disco, pasta do usuário ou a pasta do projeto."""
+    try:
+        p = p.resolve()
+    except Exception:
+        return False
+    if not p.exists():
+        return False
+    if len(p.parts) <= 2:                      # C:\, C:\Users, /home, /usr...
+        return False
+    proibidas = {Path.home().resolve(), Path(os.environ.get("USERPROFILE", "~")).resolve()}
+    return p not in proibidas and p.name.lower() not in ("windows", "users", "desktop", "documents", "downloads")
+
+
+def desinstalar_tudo(raiz, ui, executar=executar_comando) -> int:
+    """Apaga QUALQUER resquício do Zenith: programa, Python dele, dados, atalhos, Corpo (Godot)."""
+    raiz = Path(raiz)
+    caminhos = caminhos_do_app(raiz)
+    rel = {"itens": 0, "bytes": 0, "falhas": []}
+    ui.status("Fechando o Zenith...")
+    fechar_zenith(raiz, executar)
+    time.sleep(1.0)
+    alvos = [raiz]
+    dados = caminhos["dados"]
+    try:
+        if dados.exists() and raiz not in dados.resolve().parents and "zenith" in str(dados).lower():
+            alvos.append(dados)                 # pasta de dados escolhida FORA da instalação
+    except Exception:
+        pass
+    godot = Path(os.environ.get("APPDATA", "")) / "Godot" / "app_userdata"
+    for nome in ("Zenith", "zenith"):
+        if (godot / nome).exists():
+            alvos.append(godot / nome)          # config interna do Corpo (Godot)
+    for alvo in alvos:
+        if _pode_apagar(Path(alvo)):
+            ui.status(f"Apagando {alvo}...")
+            _apagar(alvo, rel)
+    for lnk in _atalhos():
+        _apagar(lnk, rel)
+    total_mb = rel["bytes"] / 1024 / 1024
+    if rel["falhas"]:
+        ui.erro("Apaguei quase tudo, mas alguns itens ficaram presos:\n\n" + "\n".join(rel["falhas"][:8]) +
+                "\n\nFeche o Zenith e rode este programa de novo.")
+        return 2
+    ui.status(f"Pronto: {total_mb:.0f} MB liberados. O Zenith e todo o histórico dele saíram deste computador.\n\n"
+              f"Você ainda pode apagar à mão o arquivo do instalador que baixou (ZenithLauncher.exe), se quiser.")
+    return 0
+
+
+def _atalhos() -> list:
+    """Atalhos que o Launcher cria: Área de Trabalho e Menu Iniciar."""
+    saida = []
+    if os.name != "nt":
+        return saida
+    try:
+        ps = ("$d=[Environment]::GetFolderPath('Desktop'); $p=[Environment]::GetFolderPath('Programs'); "
+              "Write-Output (Join-Path $d 'Zenith.lnk'); Write-Output (Join-Path $p 'Zenith.lnk')")
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                           capture_output=True, text=True, timeout=30)
+        saida = [Path(x.strip()) for x in r.stdout.splitlines() if x.strip().lower().endswith(".lnk")]
+    except Exception:
+        pass
+    return saida
+
+
+def executar_limpeza(args, ui) -> int:
+    """Caminho sem janela: --desinstalar ou --limpar a,b,c (com --sim para não perguntar)."""
+    raiz = Path(getattr(args, "pasta", "") or raiz_padrao())
+    if getattr(args, "desinstalar", False):
+        if not ui.perguntar("Desinstalar o Zenith",
+                            f"Isto apaga TUDO que o Zenith criou neste computador em {raiz}:\n"
+                            "programa, conversas, memória, chaves de API, fotos e vídeos gerados, "
+                            "programas que ele criou e os atalhos.\n\nNão tem como desfazer. Continuar?"):
+            ui.status("Nada foi apagado.")
+            return 0
+        return desinstalar_tudo(raiz, ui)
+    try:
+        cats = ler_categorias(getattr(args, "limpar", "") or "*")
+    except ErroInstalador as e:
+        ui.erro(f"{e}\n{e.dica}".strip())
+        return 3
+    resumo = "; ".join(PEDACOS[c] for c in cats)
+    if not ui.perguntar("Apagar do Zenith", f"Vou fechar o Zenith e apagar:\n\n{resumo}\n\nContinuar?"):
+        ui.status("Nada foi apagado.")
+        return 0
+    fechar_zenith(raiz)
+    rel = limpar_pedacos(raiz, cats, log=ui.status)
+    ui.status(f"Feito: {rel['itens']} item(ns), {rel['bytes'] / 1024 / 1024:.1f} MB liberados.")
+    return 0 if not rel["falhas"] else 2
+
+
 # ============================================================================ o fluxo
 class Console:
     """Interface mínima (sem janela): imprime e responde 'sim' só com --sim."""
@@ -791,6 +1095,112 @@ class JanelaTk:
         return codigo["v"]
 
 
+class JanelaLimpeza:
+    """Janela do LimparZenith.exe: uma caixinha por tipo de coisa, e a opção de desinstalar tudo.
+    Existe para o pedido "apagar por partes" — só o histórico, só as chaves, só as fotos...
+    """
+
+    def __init__(self, raiz):
+        import tkinter as tk
+        from tkinter import messagebox
+        self.tk, self.mb = tk, messagebox
+        self.raiz = Path(raiz)
+        self.root = tk.Tk()
+        self.root.title("Zenith — Limpar e desinstalar")
+        self.root.geometry("580x600")
+        self.root.resizable(False, False)
+        tk.Label(self.root, text="O que você quer apagar?",
+                 font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=18, pady=(16, 2))
+        tk.Label(self.root, text=f"Instalação: {self.raiz}", fg="#555",
+                 wraplength=540, justify="left").pack(anchor="w", padx=18)
+        self.vars = {}
+        for chave, texto in PEDACOS.items():
+            v = tk.BooleanVar(value=False)
+            self.vars[chave] = v
+            tk.Checkbutton(self.root, text=texto, variable=v, anchor="w", justify="left",
+                           wraplength=520).pack(fill="x", padx=18, pady=1)
+        tk.Frame(self.root, height=1, bg="#cccccc").pack(fill="x", padx=18, pady=10)
+        self.var_tudo = tk.BooleanVar(value=False)
+        tk.Checkbutton(self.root, text="DESINSTALAR O ZENITH INTEIRO\n(programa, Python dele, tudo acima e os atalhos)",
+                       variable=self.var_tudo, fg="#b00020", anchor="w", justify="left",
+                       wraplength=520).pack(fill="x", padx=18)
+        self.rotulo = tk.Label(self.root, text="Nada será apagado sem você confirmar.", fg="#555",
+                               wraplength=540, justify="left")
+        self.rotulo.pack(fill="x", padx=18, pady=10)
+        barra = tk.Frame(self.root)
+        barra.pack(fill="x", padx=18, pady=(0, 14))
+        tk.Button(barra, text="Apagar o que está marcado", command=self.apagar,
+                  bg="#f5a623", fg="#111").pack(side="left")
+        tk.Button(barra, text="Fechar", command=self.root.destroy).pack(side="right")
+        for v in list(self.vars.values()) + [self.var_tudo]:
+            v.trace_add("write", lambda *_: self._atualizar())
+
+    def _atualizar(self):
+        if self.var_tudo.get():
+            self.rotulo.config(text="Vai apagar o programa inteiro e todos os dados. Não tem como desfazer.")
+            return
+        marcados = [c for c, v in self.vars.items() if v.get()]
+        self.rotulo.config(text=("Marcado: " + ", ".join(marcados) + ".") if marcados
+                           else "Nada será apagado sem você confirmar.")
+
+    def status(self, texto):
+        self.root.after(0, lambda: self.rotulo.config(text=texto))
+
+    def erro(self, texto):
+        self.root.after(0, lambda: self.mb.showerror("Zenith", texto))
+
+    def apagar(self):
+        if self.var_tudo.get():
+            if not self.mb.askyesno(
+                    "Desinstalar o Zenith",
+                    "Isto apaga TUDO que o Zenith criou neste computador:\n\n"
+                    "• o programa e o Python dele\n• conversas e memória\n• chaves de API\n"
+                    "• fotos e vídeos gerados\n• programas que ele criou\n• os atalhos\n\n"
+                    "Não tem como desfazer. Continuar?"):
+                return
+            self._rodar(lambda ui: desinstalar_tudo(self.raiz, ui))
+            return
+        cats = [c for c, v in self.vars.items() if v.get()]
+        if not cats:
+            self.mb.showinfo("Zenith", "Marque pelo menos uma coisa para apagar.")
+            return
+        resumo = "\n".join("• " + PEDACOS[c] for c in cats)
+        if not self.mb.askyesno("Apagar do Zenith",
+                                f"O Zenith vai ser fechado e eu vou apagar:\n\n{resumo}\n\nContinuar?"):
+            return
+        self._rodar(lambda ui: self._limpar(cats, ui))
+
+    def _limpar(self, cats, ui):
+        ui.status("Fechando o Zenith...")
+        fechar_zenith(self.raiz)
+        time.sleep(1.0)
+        rel = limpar_pedacos(self.raiz, cats, log=ui.status)
+        texto = (f"Apaguei {rel['itens']} item(ns) — {rel['bytes'] / 1024 / 1024:.1f} MB liberados.")
+        if rel["falhas"]:
+            ui.status(texto + f" Mas {len(rel['falhas'])} não deu para apagar: " + "; ".join(rel["falhas"][:3]))
+            return 2
+        ui.status(texto + " Pode abrir o Zenith de novo.")
+        return 0
+
+    def _rodar(self, trabalho):
+        import threading
+
+        def _t():
+            try:
+                codigo = trabalho(self)
+            except Exception as e:                       # nunca deixa a janela presa
+                self.erro(f"Erro inesperado: {e}")
+                codigo = 9
+
+            def _fim():
+                texto = self.rotulo.cget("text")
+                if codigo == 0:
+                    self.mb.showinfo("Zenith", texto or "Pronto.")
+                self.root.destroy()
+            self.root.after(0, _fim)
+        threading.Thread(target=_t, daemon=True).start()
+
+
 def analisar_argumentos(argv=None):
     p = argparse.ArgumentParser(description="Zenith Launcher")
     p.add_argument("--pasta", default="", help="onde instalar (padrão: %%LOCALAPPDATA%%\\Zenith)")
@@ -801,11 +1211,27 @@ def analisar_argumentos(argv=None):
     p.add_argument("--silencioso", action="store_true", help="sem janela")
     p.add_argument("--sim", action="store_true", help="responde sim às perguntas (instalação sem supervisão)")
     p.add_argument("--esperar-pid", type=int, default=0, help="espera esse processo fechar antes de trocar arquivos")
+    p.add_argument("--desinstalar", action="store_true", help="apaga o Zenith inteiro (programa + dados + atalhos)")
+    p.add_argument("--limpar", nargs="?", const="*", default=None,
+                   help="apaga só o que for listado: " + ",".join(categorias_validas()) + " (vazio = abre a janela)")
     return p.parse_args(argv)
 
 
 def main(argv=None) -> int:
     args = analisar_argumentos(argv)
+    if args.desinstalar or args.limpar is not None:
+        raiz = Path(args.pasta) if args.pasta else raiz_padrao()
+        if args.silencioso or os.name != "nt":
+            return executar_limpeza(args, Console(args.sim))
+        try:
+            janela = JanelaLimpeza(raiz)
+        except Exception:
+            return executar_limpeza(args, Console(args.sim))
+        if args.limpar not in (None, "*"):              # lista na linha de comando: não é para abrir janela
+            janela.root.destroy()
+            return executar_limpeza(args, Console(args.sim))
+        janela.root.mainloop()
+        return 0
     if args.silencioso or os.name != "nt":
         return executar_launcher(args, Console(args.sim))
     try:
