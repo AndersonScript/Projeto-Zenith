@@ -1095,89 +1095,318 @@ class JanelaTk:
         return codigo["v"]
 
 
+# ============================================================================ janela de limpeza (redesenhada)
+# Pedido do Anderson (01/11/2026): a janela antiga era uma pilha de caixinhas iguais, sem dizer o que
+# cada uma pesa nem o que ia acontecer de verdade — "ta feio o metodo". Agora cada tipo de coisa é um
+# cartão com título, explicação e o tamanho em disco; o desinstalar total fica separado, em vermelho,
+# com o peso da instalação; e o rodapé mostra o resumo do que está marcado antes de confirmar.
+CATEGORIAS_UI = {
+    "historico": ("Conversas e histórico", "Conversas, notas, lembretes e o registro de ações."),
+    "memoria": ("Memória de longo prazo", "O que ela aprendeu e guardou sobre você."),
+    "chaves": ("Chaves de API", "Zera as chaves no settings.json — nome, tema e persona continuam."),
+    "fotos": ("Fotos e vídeos gerados", "Tudo o que ela criou na pasta de criações."),
+    "programas": ("Programas que ela criou", "As habilidades e os programas que ela escreveu sozinha."),
+    "temporarios": ("Temporários e rascunhos", "Arquivos de trabalho que podem ser refeitos sem perda."),
+    "pessoal": ("Arquivos que você escreveu", "ZENITH.md e a bíblia extra: as suas regras."),
+}
+
+
+def _alvos_da_categoria(raiz, cat) -> list:
+    """Os caminhos que a categoria apaga — só para medir o tamanho, sem apagar nada."""
+    c = caminhos_do_app(raiz)
+    if cat == "historico":
+        return [c["config"] / nome for nome in (
+            "conversations.json", "zenith_notas.jsonl", "zenith_acoes_log.jsonl",
+            "zenith_acoes_log.1.jsonl", "zenith_lembretes.json", "zenith_voz_debug.log",
+        )] + [c["app"] / "zenith_log.txt"]
+    if cat == "memoria":
+        return [c["memory"], c["app"] / "memory_db"]
+    if cat == "pessoal":
+        return [c["config"] / "ZENITH.md", c["config"] / "biblia_extra.md"]
+    if cat == "chaves":
+        return [c["config"] / "settings.json"]
+    if cat == "fotos":
+        return [c["creations"], c["app"] / "creations"]
+    if cat == "programas":
+        return [c["skills"], c["dados"] / "skills"]
+    if cat == "temporarios":
+        return [c["temp"], c["app"] / "_zenith_voice_temp.mp3", c["raiz"] / "tmp"]
+    return []
+
+
+def tamanhos_das_categorias(raiz) -> dict:
+    """{categoria: bytes} — mede o que existe hoje, para a janela mostrar quanto ocupa cada opção."""
+    return {cat: sum(_tamanho(p) for p in _alvos_da_categoria(raiz, cat)) for cat in PEDACOS}
+
+
+def tamanho_da_instalacao(raiz) -> int:
+    return _tamanho(Path(raiz))
+
+
+def _mb(tamanho) -> str:
+    """1234567 -> '1,2 MB' (leitura humana, com vírgula como no Brasil)."""
+    try:
+        n = float(tamanho or 0)
+    except (TypeError, ValueError):
+        return "—"
+    if n <= 0:
+        return "vazio"
+    if n < 1024:
+        return f"{n:.0f} B"
+    if n < 1024 * 1024:
+        return f"{n / 1024:.0f} KB"
+    if n < 1024 * 1024 * 1024:
+        return f"{n / 1024 / 1024:.1f} MB".replace(".", ",")
+    return f"{n / 1024 / 1024 / 1024:.1f} GB".replace(".", ",")
+
+
 class JanelaLimpeza:
-    """Janela do LimparZenith.exe: uma caixinha por tipo de coisa, e a opção de desinstalar tudo.
-    Existe para o pedido "apagar por partes" — só o histórico, só as chaves, só as fotos...
+    """Janela do LimparZenith.exe: um cartão por tipo de coisa, com o tamanho em disco, e a opção de
+    desinstalar tudo separada e em vermelho. Existe para o pedido "apagar por partes" — só o histórico,
+    só as chaves, só as fotos — sem transformar isso em sete caixinhas iguais e indistinguíveis.
     """
+
+    FUNDO = "#101018"
+    CARTAO = "#191922"
+    CARTAO_ATIVO = "#20202c"
+    LINHA = "#2a2a36"
+    TEXTO = "#ededf4"
+    APAGADO = "#9a9aa8"
+    ACENTO = "#f5a257"
+    PERIGO = "#e2645c"
 
     def __init__(self, raiz):
         import tkinter as tk
         from tkinter import messagebox
         self.tk, self.mb = tk, messagebox
         self.raiz = Path(raiz)
+        self.habilitado = False                    # vira True quando a limpeza está rodando
+        self.tamanhos = {}
+        try:
+            self.tamanhos = tamanhos_das_categorias(self.raiz)
+        except Exception:
+            self.tamanhos = {}
+        self.tamanho_total = _tamanho(self.raiz)
+
         self.root = tk.Tk()
-        self.root.title("Zenith — Limpar e desinstalar")
-        self.root.geometry("580x600")
+        self.root.title("Zenith — limpar e desinstalar")
+        self.root.configure(bg=self.FUNDO)
+        self.root.geometry("680x760")
         self.root.resizable(False, False)
-        tk.Label(self.root, text="O que você quer apagar?",
-                 font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=18, pady=(16, 2))
-        tk.Label(self.root, text=f"Instalação: {self.raiz}", fg="#555",
-                 wraplength=540, justify="left").pack(anchor="w", padx=18)
+        try:
+            self.root.tk.call("tk", "scaling", 1.1)
+        except Exception:
+            pass
+
+        # ---- cabeçalho
+        topo = tk.Frame(self.root, bg=self.FUNDO)
+        topo.pack(fill="x", padx=24, pady=(20, 4))
+        tk.Label(topo, text="ZENITH", bg=self.FUNDO, fg=self.ACENTO,
+                 font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        tk.Label(topo, text="Limpar e desinstalar", bg=self.FUNDO, fg=self.TEXTO,
+                 font=("Segoe UI", 18, "bold")).pack(anchor="w", pady=(1, 2))
+        tk.Label(topo, text=f"Instalação: {self.raiz}", bg=self.FUNDO, fg=self.APAGADO,
+                 font=("Segoe UI", 8), wraplength=620, justify="left").pack(anchor="w")
+
+        # ---- barra "marcar tudo / desmarcar"
+        barra = tk.Frame(self.root, bg=self.FUNDO)
+        barra.pack(fill="x", padx=24, pady=(14, 6))
+        tk.Label(barra, text="O que você quer apagar?", bg=self.FUNDO, fg=self.TEXTO,
+                 font=("Segoe UI", 10, "bold")).pack(side="left")
+        for texto, acao in (("Marcar tudo", self._marcar_tudo), ("Limpar seleção", self._desmarcar)):
+            tk.Button(barra, text=texto, command=acao, bg=self.FUNDO, fg=self.APAGADO,
+                      activebackground=self.FUNDO, activeforeground=self.ACENTO, relief="flat",
+                      bd=0, cursor="hand2", font=("Segoe UI", 9, "underline")).pack(side="right", padx=(10, 0))
+
+        # ---- cartões
+        corpo = tk.Frame(self.root, bg=self.FUNDO)
+        corpo.pack(fill="both", expand=True, padx=24)
         self.vars = {}
-        for chave, texto in PEDACOS.items():
-            v = tk.BooleanVar(value=False)
-            self.vars[chave] = v
-            tk.Checkbutton(self.root, text=texto, variable=v, anchor="w", justify="left",
-                           wraplength=520).pack(fill="x", padx=18, pady=1)
-        tk.Frame(self.root, height=1, bg="#cccccc").pack(fill="x", padx=18, pady=10)
+        self.cartoes = {}
+        for chave in PEDACOS:
+            titulo, descricao = CATEGORIAS_UI.get(chave, (PEDACOS[chave], ""))
+            cartao = tk.Frame(corpo, bg=self.CARTAO, highlightthickness=1,
+                              highlightbackground=self.LINHA)
+            cartao.pack(fill="x", pady=3)
+            linha = tk.Frame(cartao, bg=self.CARTAO)
+            linha.pack(fill="x", padx=12, pady=8)
+            var = tk.BooleanVar(value=False)
+            self.vars[chave] = var
+            caixa = tk.Checkbutton(linha, variable=var, bg=self.CARTAO, activebackground=self.CARTAO,
+                                   highlightthickness=0, bd=0, cursor="hand2")
+            caixa.pack(side="left", anchor="n", padx=(0, 10))
+            texto = tk.Frame(linha, bg=self.CARTAO)
+            texto.pack(side="left", fill="x", expand=True)
+            tk.Label(texto, text=titulo, bg=self.CARTAO, fg=self.TEXTO, anchor="w",
+                     font=("Segoe UI", 10, "bold")).pack(fill="x")
+            tk.Label(texto, text=descricao, bg=self.CARTAO, fg=self.APAGADO, anchor="w",
+                     justify="left", wraplength=430, font=("Segoe UI", 8)).pack(fill="x")
+            tk.Label(linha, text=_mb(self.tamanhos.get(chave, 0)), bg=self.CARTAO, fg=self.APAGADO,
+                     anchor="e", font=("Segoe UI", 8)).pack(side="right", anchor="n", padx=(10, 0))
+            self.cartoes[chave] = cartao
+
+        # ---- desinstalar tudo (separado, em vermelho)
+        perigo = tk.Frame(corpo, bg=self.CARTAO, highlightthickness=1, highlightbackground="#5a2a2a")
+        perigo.pack(fill="x", pady=(12, 4))
+        linha = tk.Frame(perigo, bg=self.CARTAO)
+        linha.pack(fill="x", padx=12, pady=8)
         self.var_tudo = tk.BooleanVar(value=False)
-        tk.Checkbutton(self.root, text="DESINSTALAR O ZENITH INTEIRO\n(programa, Python dele, tudo acima e os atalhos)",
-                       variable=self.var_tudo, fg="#b00020", anchor="w", justify="left",
-                       wraplength=520).pack(fill="x", padx=18)
-        self.rotulo = tk.Label(self.root, text="Nada será apagado sem você confirmar.", fg="#555",
-                               wraplength=540, justify="left")
-        self.rotulo.pack(fill="x", padx=18, pady=10)
-        barra = tk.Frame(self.root)
-        barra.pack(fill="x", padx=18, pady=(0, 14))
-        tk.Button(barra, text="Apagar o que está marcado", command=self.apagar,
-                  bg="#f5a623", fg="#111").pack(side="left")
-        tk.Button(barra, text="Fechar", command=self.root.destroy).pack(side="right")
-        for v in list(self.vars.values()) + [self.var_tudo]:
-            v.trace_add("write", lambda *_: self._atualizar())
+        tk.Checkbutton(linha, variable=self.var_tudo, bg=self.CARTAO, activebackground=self.CARTAO,
+                       highlightthickness=0, bd=0, cursor="hand2").pack(side="left", anchor="n", padx=(0, 10))
+        texto = tk.Frame(linha, bg=self.CARTAO)
+        texto.pack(side="left", fill="x", expand=True)
+        tk.Label(texto, text="Desinstalar o Zenith inteiro", bg=self.CARTAO, fg=self.PERIGO, anchor="w",
+                 font=("Segoe UI", 10, "bold")).pack(fill="x")
+        tk.Label(texto, text="Programa, Python dele, todas as opções acima e os atalhos. Não tem volta.",
+                 bg=self.CARTAO, fg=self.APAGADO, anchor="w", justify="left", wraplength=430,
+                 font=("Segoe UI", 8)).pack(fill="x")
+        tk.Label(linha, text=_mb(self.tamanho_total), bg=self.CARTAO, fg=self.PERIGO, anchor="e",
+                 font=("Segoe UI", 8)).pack(side="right", anchor="n", padx=(10, 0))
+
+        # ---- rodapé
+        rodape = tk.Frame(self.root, bg=self.FUNDO)
+        rodape.pack(fill="x", padx=24, pady=(10, 16))
+        self.rotulo = tk.Label(rodape, text="Nada será apagado sem você confirmar.", bg=self.FUNDO,
+                               fg=self.APAGADO, justify="left", wraplength=620,
+                               font=("Segoe UI", 9))
+        self.rotulo.pack(fill="x", pady=(0, 10))
+        botoes = tk.Frame(rodape, bg=self.FUNDO)
+        botoes.pack(fill="x")
+        self.botao_fechar = tk.Button(botoes, text="Fechar", command=self.root.destroy, bg=self.CARTAO,
+                                      fg=self.TEXTO, activebackground=self.CARTAO_ATIVO,
+                                      activeforeground=self.TEXTO, relief="flat", bd=0, padx=18, pady=8,
+                                      cursor="hand2", font=("Segoe UI", 9))
+        self.botao_fechar.pack(side="right")
+        self.botao_apagar = tk.Button(botoes, text="Apagar o que está marcado", command=self.apagar,
+                                      bg=self.ACENTO, fg="#1a1208", activebackground="#ffb066",
+                                      activeforeground="#1a1208", relief="flat", bd=0, padx=22, pady=9,
+                                      cursor="hand2", font=("Segoe UI", 10, "bold"))
+        self.botao_apagar.pack(side="left")
+
+        for var in list(self.vars.values()) + [self.var_tudo]:
+            var.trace_add("write", lambda *_: self._atualizar())
+        self._atualizar()
+
+    # ------------------------------------------------------------------ estado da tela
+    def _marcar_tudo(self):
+        if self.habilitado:
+            return
+        self.var_tudo.set(False)
+        for var in self.vars.values():
+            var.set(True)
+
+    def _desmarcar(self):
+        if self.habilitado:
+            return
+        self.var_tudo.set(False)
+        for var in self.vars.values():
+            var.set(False)
+
+    def _pintar(self, chave, ligado):
+        cartao = self.cartoes.get(chave)
+        if not cartao:
+            return
+        fundo = self.CARTAO_ATIVO if ligado else self.CARTAO
+        cartao.configure(bg=fundo, highlightbackground=self.ACENTO if ligado else self.LINHA)
+        for filho in cartao.winfo_children():
+            self._pintar_filho(filho, fundo)
+
+    def _pintar_filho(self, widget, fundo):
+        if isinstance(widget, self.tk.Label) or widget.winfo_class() in ("Frame", "Checkbutton"):
+            try:
+                widget.configure(bg=fundo)
+                if widget.winfo_class() == "Checkbutton":
+                    widget.configure(activebackground=fundo)
+            except Exception:
+                pass
+        for filho in widget.winfo_children():
+            self._pintar_filho(filho, fundo)
 
     def _atualizar(self):
-        if self.var_tudo.get():
-            self.rotulo.config(text="Vai apagar o programa inteiro e todos os dados. Não tem como desfazer.")
+        if self.habilitado:
             return
         marcados = [c for c, v in self.vars.items() if v.get()]
-        self.rotulo.config(text=("Marcado: " + ", ".join(marcados) + ".") if marcados
-                           else "Nada será apagado sem você confirmar.")
+        for chave in self.vars:
+            self._pintar(chave, chave in marcados)
+        if self.var_tudo.get():
+            self.rotulo.config(
+                fg=self.PERIGO,
+                text=f"Vai apagar o programa inteiro e todos os dados ({_mb(self.tamanho_total)}). "
+                     f"Não tem como desfazer.")
+            return
+        if not marcados:
+            self.rotulo.config(fg=self.APAGADO,
+                               text="Nada será apagado sem você confirmar. "
+                                    "Marque um cartão acima para escolher o que sai.")
+            return
+        total = sum(self.tamanhos.get(c, 0) for c in marcados)
+        nomes = ", ".join(CATEGORIAS_UI.get(c, (c, ""))[0] for c in marcados)
+        self.rotulo.config(fg=self.ACENTO, text=f"Marcado: {nomes} — {_mb(total)}.")
 
     def status(self, texto):
         self.root.after(0, lambda: self.rotulo.config(text=texto))
+        self.root.after(0, lambda: self.root.update_idletasks())
 
     def erro(self, texto):
         self.root.after(0, lambda: self.mb.showerror("Zenith", texto))
 
+    # ------------------------------------------------------------------ apagar
     def apagar(self):
+        if self.habilitado:
+            return
         if self.var_tudo.get():
             if not self.mb.askyesno(
                     "Desinstalar o Zenith",
-                    "Isto apaga TUDO que o Zenith criou neste computador:\n\n"
-                    "• o programa e o Python dele\n• conversas e memória\n• chaves de API\n"
-                    "• fotos e vídeos gerados\n• programas que ele criou\n• os atalhos\n\n"
-                    "Não tem como desfazer. Continuar?"):
+                    "Isto apaga TUDO o que o Zenith criou neste computador:\n\n"
+                    "  • o programa e o Python dele\n"
+                    "  • conversas, memória e arquivos que você escreveu\n"
+                    "  • chaves de API\n"
+                    "  • fotos e vídeos gerados\n"
+                    "  • programas que ele criou\n"
+                    "  • os atalhos da Área de Trabalho e do Menu Iniciar\n\n"
+                    f"Espaço liberado: cerca de {_mb(self.tamanho_total)}.\n"
+                    "Não tem como desfazer. Continuar?", icon="warning", default="no"):
                 return
+            self._travar()
             self._rodar(lambda ui: desinstalar_tudo(self.raiz, ui))
             return
+
         cats = [c for c, v in self.vars.items() if v.get()]
         if not cats:
-            self.mb.showinfo("Zenith", "Marque pelo menos uma coisa para apagar.")
+            self.mb.showinfo("Zenith", "Marque pelo menos um cartão para apagar.\n\n"
+                                       "Se a ideia é remover o programa inteiro, use o cartão vermelho "
+                                       "\"Desinstalar o Zenith inteiro\".")
             return
-        resumo = "\n".join("• " + PEDACOS[c] for c in cats)
-        if not self.mb.askyesno("Apagar do Zenith",
-                                f"O Zenith vai ser fechado e eu vou apagar:\n\n{resumo}\n\nContinuar?"):
+        total = sum(self.tamanhos.get(c, 0) for c in cats)
+        lista = "\n".join(f"  • {CATEGORIAS_UI.get(c, (c, ''))[0]}" for c in cats)
+        if not self.mb.askyesno(
+                "Apagar do Zenith",
+                f"O Zenith vai ser fechado e eu vou apagar:\n\n{lista}\n\n"
+                f"Espaço liberado: cerca de {_mb(total)}.\n"
+                "O resto (chaves, memória, programa) continua intacto. Continuar?",
+                icon="warning", default="no"):
             return
+        self._travar()
         self._rodar(lambda ui: self._limpar(cats, ui))
+
+    def _travar(self):
+        """Durante a limpeza a janela não deixa mais mexer nas escolhas (evita apagar o que não viu)."""
+        self.habilitado = True
+        for botao in (self.botao_apagar, self.botao_fechar):
+            try:
+                botao.configure(state="disabled")
+            except Exception:
+                pass
 
     def _limpar(self, cats, ui):
         ui.status("Fechando o Zenith...")
         fechar_zenith(self.raiz)
         time.sleep(1.0)
         rel = limpar_pedacos(self.raiz, cats, log=ui.status)
-        texto = (f"Apaguei {rel['itens']} item(ns) — {rel['bytes'] / 1024 / 1024:.1f} MB liberados.")
+        texto = f"Apaguei {rel['itens']} item(ns) — {_mb(rel['bytes'])} liberados."
         if rel["falhas"]:
-            ui.status(texto + f" Mas {len(rel['falhas'])} não deu para apagar: " + "; ".join(rel["falhas"][:3]))
+            ui.status(texto + f" Mas {len(rel['falhas'])} item(ns) não deu para apagar: "
+                              + "; ".join(rel["falhas"][:3]))
             return 2
         ui.status(texto + " Pode abrir o Zenith de novo.")
         return 0
