@@ -120,6 +120,18 @@ summary:hover{color:var(--accent)}
 details p{margin-top:10px;color:var(--muted);font-size:.88rem}
 details ol{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:.88rem}
 
+/* ---------- download: passos, pastas e dica (02/11) ---------- */
+.dl-passos{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+.dl-passos span{font-size:.84rem;color:var(--muted);background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:7px 14px}
+.dl-passos b{color:var(--accent);margin-right:7px;font-weight:600}
+.dl-dica{color:var(--muted2);font-size:.86rem;margin-top:12px;max-width:60ch}
+.dl-pastas{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+@media (max-width:860px){.dl-pastas{grid-template-columns:1fr}}
+.dl-pasta{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+.dl-pasta h4{margin:0 0 8px;font-size:.98rem;font-weight:600}
+.dl-pasta p{color:var(--muted);font-size:.88rem}
+.dl-pasta code{display:inline-block;padding:2px 7px;font-size:.8rem;border-radius:6px}
+
 .notas{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
 @media (max-width:860px){.notas{grid-template-columns:1fr}}
 .aviso{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--bg2);border-radius:0 12px 12px 0;padding:14px 18px;color:var(--muted);font-size:.9rem}
@@ -239,9 +251,28 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
       <span class="rotulo">Download</span>
       <h2>Baixar o Zenith</h2>
       <p>Um instalador pequeno. Ele baixa o resto, confere o SHA-256 e pergunta antes de cada passo.</p>
+    </div>    <div class="dl-passos">
+      <span><b>1</b>Baixar o Launcher</span>
+      <span><b>2</b>Escolher as duas pastas</span>
+      <span><b>3</b>Entrar no Zenith</span>
     </div>
 
     <div class="download" id="ultima"><p class="meta">Carregando…</p><noscript>Ative o JavaScript para ver a versão mais recente.</noscript></div>
+
+    <div class="dl-pastas">
+      <div class="dl-pasta">
+        <h4>Onde o arquivo é salvo</h4>
+        <p>Quem escolhe é o <strong>seu navegador</strong>, não o site: ele salva na pasta de Downloads (ou pergunta, conforme
+        a configuração). No Chrome e no Edge: <code>Configurações › Downloads › Local</code>. Como o instalador é um arquivo
+        só, você pode salvá-lo onde quiser — inclusive num pendrive — e abrir de lá.</p>
+      </div>
+      <div class="dl-pasta">
+        <h4>Onde ficam os seus projetos</h4>
+        <p>Na primeira execução o Launcher abre um assistente e pergunta <strong>duas</strong> pastas: onde instalar o programa
+        e onde guardar conversas, imagens, vídeos e a memória. O padrão é <code>%LOCALAPPDATA%\Zenith</code>; para usar outro
+        disco, é só escolher na tela. Também dá para fixar pela linha de comando: <code>ZenithLauncher.exe --pasta D:\Zenith --dados D:\Zenith\dados</code>.</p>
+      </div>
+    </div>
 
     <div class="notas">
       <p class="aviso"><strong>O instalador ainda não é assinado.</strong> Por isso o Windows pode dizer “Windows protegeu seu PC” e alguns antivírus estranham programas que baixam outros programas. Confira o SHA-256 antes de abrir.</p>
@@ -406,6 +437,8 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
       var la=el("a","botao fantasma","Limpar ou desinstalar");la.href="/limpar";acoes.appendChild(la);
     }
     box.appendChild(acoes);
+    box.appendChild(el("p","dl-dica","O Launcher abre um assistente antes de baixar qualquer coisa grande: ele pergunta onde "
+      +"instalar o programa e onde guardar conversas, imagens e memória. Você escolhe — inclusive outro disco ou pendrive."));
 
     var rod=el("div","dl-rodape");
     rod.appendChild(blocoHash("SHA-256 do Launcher",l.sha256,l.arquivo));
