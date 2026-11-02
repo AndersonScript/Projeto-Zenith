@@ -501,15 +501,86 @@ def comando_instalar_python(instalador, destino) -> list:
             "PrependPath=0", "Shortcuts=0", "AssociateFiles=0", "CompileAll=0"]
 
 
+def pythons_instalados() -> list:
+    """Pasta de cada Python do python.org que JÁ existe nesta máquina: [(versão, pasta), ...].
+
+    v1.11 — por que isto existe: quando a MESMA versão do Python já está instalada, o instalador oficial
+    entra em modo "modificar", IGNORA o `TargetDir` que pedimos e mesmo assim devolve código 0. A pasta
+    runtime/python fica vazia, o código 0 engana o launcher e a pessoa vê "A instalação do Python não
+    terminou (código 0)" com o detalhe em branco. Aqui a gente descobre onde ele instalou de verdade.
+    """
+    achados = []
+    try:
+        import winreg
+    except Exception:
+        winreg = None
+    if winreg is not None:
+        vistas = ((winreg.HKEY_CURRENT_USER, 0), (winreg.HKEY_LOCAL_MACHINE, winreg.KEY_WOW64_64KEY),
+                  (winreg.HKEY_LOCAL_MACHINE, winreg.KEY_WOW64_32KEY))
+        for hive, vista in vistas:
+            try:
+                with winreg.OpenKey(hive, r"Software\Python\PythonCore", 0, winreg.KEY_READ | vista) as k:
+                    i = 0
+                    while True:
+                        try:
+                            versao = winreg.EnumKey(k, i)
+                        except OSError:
+                            break
+                        i += 1
+                        try:
+                            with winreg.OpenKey(k, versao + r"\InstallPath", 0, winreg.KEY_READ | vista) as ip:
+                                try:
+                                    pasta, _ = winreg.QueryValueEx(ip, "")
+                                except OSError:
+                                    pasta = winreg.QueryValue(ip, None)
+                        except OSError:
+                            continue
+                        if pasta and Path(pasta, "python.exe").exists():
+                            achados.append((versao, Path(pasta)))
+            except OSError:
+                continue
+    # pasta padrão do instalador "só para mim" (quando o registro não ajuda)
+    base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Programs" / "Python"
+    if base.is_dir():
+        for p in base.glob("Python3*"):
+            if (p / "python.exe").exists():
+                achados.append((p.name.replace("Python", ""), p))
+    achados.sort(key=lambda par: [int(n) for n in re.findall(r"\d+", par[0])[:3]] or [0], reverse=True)
+    return achados
+
+
 def instalar_python(raiz, instalador, executar=executar_comando):
     destino = Path(raiz) / "runtime" / "python"
     if destino.exists():
         shutil.rmtree(destino, ignore_errors=True)
-    codigo, saida = executar(comando_instalar_python(instalador, destino), None, 1200)
+    log = Path(raiz) / "tmp" / "python_instalacao.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    codigo, saida = executar(comando_instalar_python(instalador, destino) + ["/log", str(log)], None, 1200)
     exe = python_exe(raiz)
-    if codigo != 0 or not exe.exists():
+    if not exe.exists():
+        # código 0 mas nada em runtime/python: copia a instalação que já existe (cópia própria, sem
+        # administrador e sem mexer no Python da pessoa). Só aceita a que tiver Tk/SSL/sqlite/venv.
+        for _versao, pasta in pythons_instalados():
+            try:
+                if destino.exists():
+                    shutil.rmtree(destino, ignore_errors=True)
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copytree(pasta, destino)
+            except Exception:
+                continue
+            ok, _saida_teste = executar([str(exe), "-c", "import tkinter, ssl, sqlite3, venv"], None, 120)
+            if ok == 0:
+                return exe
+            shutil.rmtree(destino, ignore_errors=True)
+    if not exe.exists():
+        detalhe = saida[-400:]
+        try:
+            if log.exists():
+                detalhe = (detalhe + "\n" + log.read_text(encoding="utf-8", errors="replace")[-800:]).strip()
+        except Exception:
+            pass
         raise ErroInstalador(f"A instalação do Python não terminou (código {codigo}).",
-                             "Veja se há espaço em disco e se o antivírus não bloqueou. Detalhe: " + saida[-300:])
+                             "Veja se há espaço em disco e se o antivírus não bloqueou. Detalhe: " + detalhe)
     codigo, saida = executar([str(exe), "-c", "import tkinter, ssl, sqlite3, venv; print('ok')"], None, 120)
     if codigo != 0:
         raise ErroInstalador("O Python foi instalado, mas faltam peças (Tk/SSL). Instalação incompleta.", saida[-300:])
@@ -909,7 +980,7 @@ def _passo_baixar(ui, rotulo, item, limite, hosts, destino, permitir_local, abri
 
 
 def instalar_ou_atualizar(raiz, man, ui, hosts, launcher_exe="", permitir_local=False, abrir=None,
-                          executar=executar_comando, instalacao_nova=True) -> dict:
+                          executar=executar_comando, instalacao_nova=True, dados=None) -> dict:
     """Baixa tudo, confere, troca a pasta, instala as bibliotecas e grava o estado. Não abre o Zenith."""
     raiz = Path(raiz)
     tmp = raiz / "tmp"
@@ -938,7 +1009,7 @@ def instalar_ou_atualizar(raiz, man, ui, hosts, launcher_exe="", permitir_local=
         executar(["powershell", "-NoProfile", "-NonInteractive", "-Command", script_encerrar_pasta(raiz / "app")], None, 60)
     ui.status("Trocando a versão (a anterior fica guardada)...")
     trocar_app(raiz, staging)
-    gravar_instalacao_json(raiz / "app", raiz / "dados")
+    gravar_instalacao_json(raiz / "app", Path(dados) if dados else raiz / "dados")
     # bibliotecas: só mexe se o requirements.txt mudou (ou se é novo)
     req_arq = raiz / "app" / "requirements.txt"
     texto = req_arq.read_text(encoding="utf-8", errors="replace") if req_arq.exists() else ""
@@ -993,7 +1064,8 @@ def executar_launcher(args, ui, abrir=None, executar=executar_comando, popen=sub
             if not ui.perguntar("Instalar o Zenith", texto):
                 ui.status("Instalação cancelada. Nada foi baixado.")
                 return 1
-            instalar_ou_atualizar(raiz, man, ui, hosts, launcher_exe, permitir_local, abrir, executar, True)
+            instalar_ou_atualizar(raiz, man, ui, hosts, launcher_exe, permitir_local, abrir, executar, True,
+                                  dados=(Path(args.dados) if getattr(args, "dados", "") else None))
         elif man and versao_tupla(man["versao"]) > versao_tupla(instalada):
             if args.atualizar or args.sim or ui.perguntar(
                     "Atualização do Zenith",
@@ -1044,6 +1116,92 @@ def carregar_config(manifesto_arg: str = "") -> dict:
 
 
 # ============================================================================ janela (tkinter) — não testada em Linux
+class JanelaEscolha:
+    """Primeira tela do instalador: ONDE instalar e ONDE ficam os projetos.
+
+    Pedido do Anderson (02/11/2026): antes o launcher decidia tudo sozinho (%LOCALAPPDATA%\\Zenith) e a
+    pessoa não escolhia nada — nem onde o programa ficava, nem onde iam as conversas, imagens e a memória.
+    Agora as duas pastas aparecem com "Escolher..." e o resumo do que vai acontecer.
+    """
+
+    def __init__(self, raiz_sugerida=None, dados_sugeridos=None):
+        import tkinter as tk
+        from tkinter import filedialog, messagebox
+        self.tk = tk
+        self.filedialog = filedialog
+        self.mb = messagebox
+        self.resultado = None
+        self.root = tk.Tk()
+        self.root.title("Zenith — onde instalar")
+        self.root.geometry("660x430")
+        self.root.resizable(False, False)
+
+        tk.Label(self.root, text="Onde o Zenith vai ficar",
+                 font=("Segoe UI", 15, "bold")).pack(anchor="w", padx=26, pady=(22, 4))
+        tk.Label(self.root, text="Escolha as duas pastas. O padrão é o do Windows; se quiser, use outro disco "
+                                "(D:, E: ou até um pendrive).",
+                 fg="#555", wraplength=610, justify="left").pack(anchor="w", padx=26)
+
+        self.var_raiz = tk.StringVar(value=str(raiz_sugerida or raiz_padrao()))
+        self.var_dados = tk.StringVar(value=str(dados_sugeridos or (Path(self.var_raiz.get()) / "dados")))
+
+        self._linha("Programa e Python do Zenith:", self.var_raiz, self._escolher_raiz, "~350 MB")
+        self._linha("Conversas, imagens e memória:", self.var_dados, self._escolher_dados, "cresce com o uso")
+
+        tk.Label(self.root, wraplength=610, justify="left", fg="#555",
+                 text="Cada pasta é criada automaticamente. Não precisa de administrador e nada aqui mexe no seu "
+                      "Python nem em outras pastas do computador.").pack(anchor="w", padx=26, pady=(14, 0))
+
+        botoes = tk.Frame(self.root)
+        botoes.pack(side="bottom", fill="x", padx=26, pady=18)
+        tk.Button(botoes, text="Cancelar", command=self._cancelar, width=12).pack(side="right")
+        tk.Button(botoes, text="Instalar aqui", command=self._confirmar, width=18,
+                  bg="#f5a623", fg="#111", activebackground="#ffb84d",
+                  font=("Segoe UI", 10, "bold")).pack(side="right", padx=(0, 10))
+
+    def _linha(self, texto, var, comando, dica):
+        tk, f = self.tk, self.tk.Frame(self.root)
+        f.pack(fill="x", padx=26, pady=(16, 0))
+        tk.Label(f, text=texto, anchor="w").pack(anchor="w")
+        linha = tk.Frame(f)
+        linha.pack(fill="x", pady=(4, 0))
+        tk.Entry(linha, textvariable=var, font=("Consolas", 9)).pack(side="left", fill="x", expand=True, ipady=4)
+        tk.Button(linha, text="Escolher...", command=comando).pack(side="left", padx=(8, 0))
+        tk.Label(f, text=dica, fg="#777", font=("Segoe UI", 8)).pack(anchor="w", pady=(3, 0))
+
+    def _escolher_raiz(self):
+        pasta = self.filedialog.askdirectory(title="Onde instalar o Zenith",
+                                             initialdir=self.var_raiz.get())
+        if not pasta:
+            return
+        era_padrao = Path(self.var_dados.get()) == Path(self.var_raiz.get()) / "dados"
+        self.var_raiz.set(pasta)
+        if era_padrao:                      # dados acompanham a instalação, a não ser que já tenham sido trocados
+            self.var_dados.set(str(Path(pasta) / "dados"))
+
+    def _escolher_dados(self):
+        pasta = self.filedialog.askdirectory(title="Onde guardar conversas, imagens e memória",
+                                             initialdir=self.var_dados.get())
+        if pasta:
+            self.var_dados.set(pasta)
+
+    def _confirmar(self):
+        raiz, dados = self.var_raiz.get().strip(), self.var_dados.get().strip()
+        if not raiz or not dados:
+            self.mb.showwarning("Zenith", "Preencha as duas pastas.")
+            return
+        self.resultado = {"raiz": str(Path(raiz)), "dados": str(Path(dados))}
+        self.root.destroy()
+
+    def _cancelar(self):
+        self.resultado = None
+        self.root.destroy()
+
+    def rodar(self):
+        self.root.mainloop()
+        return self.resultado
+
+
 class JanelaTk:
     def __init__(self):
         import tkinter as tk
@@ -1433,6 +1591,8 @@ class JanelaLimpeza:
 def analisar_argumentos(argv=None):
     p = argparse.ArgumentParser(description="Zenith Launcher")
     p.add_argument("--pasta", default="", help="onde instalar (padrão: %%LOCALAPPDATA%%\\Zenith)")
+    p.add_argument("--dados", default="",
+                   help="onde ficam conversas, imagens e memória (padrão: <instalação>\\dados)")
     p.add_argument("--manifesto", default="", help="endereço do latest.json (para testes)")
     p.add_argument("--atualizar", action="store_true", help="só atualizar (e abrir)")
     p.add_argument("--reverter", action="store_true", help="voltar para a versão anterior")
@@ -1463,6 +1623,19 @@ def main(argv=None) -> int:
         return 0
     if args.silencioso or os.name != "nt":
         return executar_launcher(args, Console(args.sim))
+    # v1.12 — instalação nova: pergunta ONDE instalar e ONDE ficam os projetos (antes era tudo fixo)
+    pretendida = Path(args.pasta) if args.pasta else raiz_padrao()
+    if (not args.pasta and not args.atualizar and not args.reverter and not args.esperar_pid
+            and not ler_estado(pretendida).get("versao")):
+        try:
+            escolha = JanelaEscolha(pretendida).rodar()
+        except Exception:
+            escolha = "sem-tk"
+        if escolha == "sem-tk":                  # sem Tk disponível: segue com as pastas padrão
+            return executar_launcher(args, Console(args.sim))
+        if not escolha:                          # a pessoa cancelou: nada é baixado
+            return 0
+        args.pasta, args.dados = escolha["raiz"], escolha["dados"]
     try:
         janela = JanelaTk()
     except Exception:
