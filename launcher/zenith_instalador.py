@@ -1,4 +1,4 @@
-"""
+﻿"""
 Zenith Launcher — baixa o Zenith, prepara o Python com TODAS as bibliotecas e mantém tudo atualizado.
 
 É o programa pequeno (ZenithLauncher.exe) que o site (Vercel) entrega. Só usa a biblioteca padrão do Python,
@@ -155,15 +155,19 @@ def _erro_de_rede(e: Exception) -> ErroInstalador:
     return ErroInstalador(f"Falha ao baixar: {e}", "Confira a internet e o espaço em disco.")
 
 
-def abrir_url(url: str, hosts, permitir_local: bool = False, tempo: int = TEMPO_REDE):
+def abrir_url(url: str, hosts, permitir_local: bool = False, tempo: int = TEMPO_REDE, headers: dict = None):
     """Abre a URL com o abridor seguro. Devolve o objeto de resposta (use .read(n))."""
     if not host_permitido(url, hosts, permitir_local):
         raise ErroInstalador(f"Endereço não permitido: {url}",
                              "O Launcher só baixa dos endereços da lista (site do Zenith, GitHub e python.org).")
+    req = urllib.request.Request(url)
+    req.add_header("User-Agent", f"ZenithLauncher/{VERSAO_LAUNCHER}")
+    if headers:
+        for k, v in headers.items():
+            req.add_header(k, str(v))
     abridor = urllib.request.build_opener(_RedirectSeguro(hosts, permitir_local),
                                           urllib.request.HTTPSHandler(context=contexto_ssl()))
-    abridor.addheaders = [("User-Agent", f"ZenithLauncher/{VERSAO_LAUNCHER}")]
-    return abridor.open(url, timeout=tempo)
+    return abridor.open(req, timeout=tempo)
 
 
 # ============================================================================ manifesto (latest.json)
@@ -229,53 +233,102 @@ def ler_manifesto(url: str, hosts, permitir_local: bool = False, abrir=None) -> 
 # ============================================================================ download conferido
 def baixar(url: str, destino, sha256: str, max_bytes: int, hosts, progresso=None, abrir=None,
            cancelado=None, permitir_local: bool = False) -> Path:
-    """Baixa para `destino` (via .parte), confere o SHA-256 durante a leitura e só então renomeia.
-    Hash errado, tamanho acima do limite ou cancelamento => nada fica no disco."""
+    """Baixa para destino (via .parte) com suporte a retomada (HTTP Range), retries com reconexao
+    e conferencia de SHA-256 no final. Nada corrompido fica no disco."""
     destino = Path(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
     parte = destino.with_name(destino.name + ".parte")
-    abrir = abrir or (lambda u: abrir_url(u, hosts, permitir_local))
-    h = hashlib.sha256()
-    lido = 0
-    try:
-        with abrir(url) as r, open(parte, "wb") as f:
-            total = 0
-            try:
-                total = int(getattr(r, "headers", {}).get("Content-Length") or 0)
-            except Exception:
-                total = 0
-            while True:
-                if cancelado and cancelado():
-                    raise ErroInstalador("Cancelado por você.")
-                bloco = r.read(256 * 1024)
-                if not bloco:
-                    break
-                lido += len(bloco)
-                if lido > max_bytes:
-                    raise ErroInstalador("O arquivo passou do limite de segurança — descartei o download.")
-                h.update(bloco)
-                f.write(bloco)
-                if progresso and total:
-                    progresso(min(lido / total, 1.0))
-        if lido == 0:
-            raise ErroInstalador("O servidor mandou um arquivo vazio.")
-        if h.hexdigest() != str(sha256).lower():
-            raise ErroInstalador("O SHA-256 não confere: o arquivo pode ter sido trocado no caminho. Descartei o download.",
-                                 "Tente de novo; se repetir, avise quem publicou.")
-        os.replace(parte, destino)
-        if progresso:
-            progresso(1.0)
-        return destino
-    except ErroInstalador:
-        raise
-    except Exception as e:
-        raise _erro_de_rede(e)
-    finally:
-        try:
+    abrir_padrao = lambda u, hdrs=None: abrir_url(u, hosts, permitir_local, headers=hdrs)
+
+    tentativas = 5
+    ultimo_erro = None
+
+    for tentativa in range(tentativas):
+        if cancelado and cancelado():
             if parte.exists():
-                parte.unlink()
-        except OSError:
-            pass
+                try: parte.unlink()
+                except OSError: pass
+            raise ErroInstalador("Cancelado por você.")
+
+        existente = parte.stat().st_size if parte.exists() else 0
+        headers = {}
+        if existente > 0:
+            headers["Range"] = f"bytes={existente}-"
+
+        try:
+            if abrir:
+                try:
+                    r = abrir(url, headers=headers)
+                except TypeError:
+                    r = abrir(url)
+            else:
+                r = abrir_padrao(url, hdrs=headers)
+
+            with r:
+                status = getattr(r, "status", getattr(r, "code", 200))
+                modo = "ab" if (status == 206 and existente > 0) else "wb"
+                if modo == "wb":
+                    existente = 0
+
+                total = 0
+                try:
+                    cl = int(getattr(r, "headers", {}).get("Content-Length") or 0)
+                    total = cl + existente if cl > 0 else 0
+                except Exception:
+                    total = 0
+
+                with open(parte, modo) as f:
+                    lido = existente
+                    while True:
+                        if cancelado and cancelado():
+                            raise ErroInstalador("Cancelado por você.")
+                        bloco = r.read(256 * 1024)
+                        if not bloco:
+                            break
+                        lido += len(bloco)
+                        if lido > max_bytes:
+                            raise ErroInstalador("O arquivo passou do limite de segurança — descartei o download.")
+                        f.write(bloco)
+                        if progresso and total:
+                            progresso(min(lido / total, 1.0))
+
+            if parte.stat().st_size == 0:
+                raise ErroInstalador("O servidor mandou um arquivo vazio.")
+
+            h = hashlib.sha256()
+            with open(parte, "rb") as f:
+                while True:
+                    b = f.read(512 * 1024)
+                    if not b:
+                        break
+                    h.update(b)
+
+            if h.hexdigest().lower() != str(sha256).lower():
+                if parte.exists():
+                    try: parte.unlink()
+                    except OSError: pass
+                raise ErroInstalador("O SHA-256 não confere: o arquivo pode ter sido trocado no caminho. Descartei o download.",
+                                     "Tente de novo; se repetir, avise quem publicou.")
+
+            os.replace(parte, destino)
+            if progresso:
+                progresso(1.0)
+            return destino
+
+        except ErroInstalador:
+            if parte.exists():
+                try: parte.unlink()
+                except OSError: pass
+            raise
+        except Exception as e:
+            ultimo_erro = e
+            time.sleep(0.5 + tentativa * 0.5)
+            continue
+
+    if parte.exists():
+        try: parte.unlink()
+        except OSError: pass
+    raise _erro_de_rede(ultimo_erro or Exception("Falha após múltiplas tentativas de download."))
 
 
 # ============================================================================ extração protegida
