@@ -435,6 +435,11 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
     var apk=m.android;
     if(apk&&seguro(apk.url)){
       var a_apk=el("a","botao","Baixar para Celular (APK) 📱");a_apk.href="/apk";acoes.appendChild(a_apk);
+    } else {
+      var a_apk=el("button","botao fantasma","Versão Celular (Em testes) 📱");
+      a_apk.type="button";
+      a_apk.onclick=function(){alert("A versão para celular Android está na fase de testes (Prova 1). O APK estará disponível para download direto aqui assim que exportado!");};
+      acoes.appendChild(a_apk);
     }
     var lm=m.limpar;
     if(lm&&seguro(lm.url)&&lm.sha256&&!/PREENCHER/.test(lm.sha256)){
@@ -451,10 +456,24 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
     }
     box.appendChild(rod);
 
-    if(cta)cta.replaceChildren(
-      Object.assign(el("a","botao","Baixar para Windows"),{href:"#baixar"}),
-      Object.assign(el("a","botao fantasma","Versão Celular (APK) 📱"),{href:"/apk",style:"margin-left:8px"})
-    );
+    if(cta){
+      cta.replaceChildren();
+      var cta_pc = el("a","botao","Baixar para Windows");
+      cta_pc.href = "#baixar";
+      cta.appendChild(cta_pc);
+      if(apk&&seguro(apk.url)){
+        var cta_mob = el("a","botao fantasma","Versão Celular (APK) 📱");
+        cta_mob.href = "/apk";
+        cta_mob.style.marginLeft = "8px";
+        cta.appendChild(cta_mob);
+      } else {
+        var cta_mob = el("button","botao fantasma","Versão Celular (Em testes) 📱");
+        cta_mob.type = "button";
+        cta_mob.style.marginLeft = "8px";
+        cta_mob.onclick = function(){alert("A versão para celular Android está na fase de testes (Prova 1). O APK estará disponível para download direto aqui assim que exportado!");};
+        cta.appendChild(cta_mob);
+      }
+    }
   }
 
   function lista(d){

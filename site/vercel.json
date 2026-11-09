@@ -13,12 +13,12 @@
     },
     {
       "source": "/apk",
-      "destination": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/Zenith.apk",
+      "destination": "/#baixar",
       "permanent": false
     },
     {
       "source": "/android",
-      "destination": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/Zenith.apk",
+      "destination": "/#baixar",
       "permanent": false
     }
   ],
