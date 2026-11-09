@@ -1,12 +1,12 @@
 {
   "versao": "1.0",
   "data": "2026-11-08",
-  "notas": "Download resiliente com retomada e reconexao\nGeracao de imagens gratuita integrada (Pollinations/Cloudflare)\nDocumentacao unificada no MANUAL_GERAL_ZENITH\nCorpo Godot reexportado com correcoes de tela preta e HDR desativado",
+  "notas": "Atualizacao v1.0: download resiliente com retomada e reconexao, correcao de tela preta e HDR desativado, sistema de atualizacao automatica de 1 clique, integracao de imagens gratis (Pollinations/Cloudflare) e MANUAL_GERAL_ZENITH",
   "pacote": {
     "arquivo": "Zenith_app_1.0.zip",
     "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith_app_1.0.zip",
-    "sha256": "41418d069c9f98baaa31085bcb8bdaf6306874b02cb85e4f586cc41c6a7fe1c6",
-    "tamanho": 75419497
+    "sha256": "90f199945e8261e9e1ed57894e0b9486a18e5b941d146179fdd547667a5a764a",
+    "tamanho": 75420393
   },
   "python": {
     "versao": "3.12.10",
@@ -15,8 +15,8 @@
     "tamanho": 0
   },
   "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith_app_1.0.zip",
-  "sha256": "41418d069c9f98baaa31085bcb8bdaf6306874b02cb85e4f586cc41c6a7fe1c6",
-  "tamanho": 75419497,
+  "sha256": "90f199945e8261e9e1ed57894e0b9486a18e5b941d146179fdd547667a5a764a",
+  "tamanho": 75420393,
   "launcher": {
     "versao": "1.0.0",
     "arquivo": "ZenithLauncher.exe",
@@ -30,5 +30,10 @@
     "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/LimparZenith.exe",
     "sha256": "a108d96d746bae18ed8d48e55f251e3418f6d46497330dc3a66bad33a071d59b",
     "tamanho": 12782131
+  },
+  "android": {
+    "versao": "1.0",
+    "arquivo": "Zenith.apk",
+    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/Zenith.apk"
   }
 }

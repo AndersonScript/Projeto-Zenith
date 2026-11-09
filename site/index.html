@@ -432,6 +432,10 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
 
     var acoes=el("div","dl-acoes");
     var a=el("a","botao grande","Baixar o Launcher ↓");a.href="/baixar";acoes.appendChild(a);
+    var apk=m.android;
+    if(apk&&seguro(apk.url)){
+      var a_apk=el("a","botao","Baixar para Celular (APK) 📱");a_apk.href="/apk";acoes.appendChild(a_apk);
+    }
     var lm=m.limpar;
     if(lm&&seguro(lm.url)&&lm.sha256&&!/PREENCHER/.test(lm.sha256)){
       var la=el("a","botao fantasma","Limpar ou desinstalar");la.href="/limpar";acoes.appendChild(la);
@@ -447,7 +451,10 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
     }
     box.appendChild(rod);
 
-    if(cta)cta.replaceChildren(Object.assign(el("a","botao","Baixar para Windows"),{href:"#baixar"}));
+    if(cta)cta.replaceChildren(
+      Object.assign(el("a","botao","Baixar para Windows"),{href:"#baixar"}),
+      Object.assign(el("a","botao fantasma","Versão Celular (APK) 📱"),{href:"/apk",style:"margin-left:8px"})
+    );
   }
 
   function lista(d){

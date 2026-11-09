@@ -10,6 +10,16 @@
       "source": "/limpar",
       "destination": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/LimparZenith.exe",
       "permanent": false
+    },
+    {
+      "source": "/apk",
+      "destination": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/Zenith.apk",
+      "permanent": false
+    },
+    {
+      "source": "/android",
+      "destination": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/Zenith.apk",
+      "permanent": false
     }
   ],
   "headers": [
