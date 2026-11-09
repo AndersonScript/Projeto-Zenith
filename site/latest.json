@@ -23,5 +23,12 @@
     "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/ZenithLauncher.exe",
     "sha256": "ef818e4a58ffc021c52f929d38ee443a0cbbbba8d4328d0eb6f54253236ccd54",
     "tamanho": 12778810
+  },
+  "limpar": {
+    "versao": "1.0.1",
+    "arquivo": "LimparZenith.exe",
+    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/latest/download/LimparZenith.exe",
+    "sha256": "a108d96d746bae18ed8d48e55f251e3418f6d46497330dc3a66bad33a071d59b",
+    "tamanho": 12782131
   }
 }
