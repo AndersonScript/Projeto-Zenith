@@ -10,11 +10,11 @@
         "Download resiliente com retomada e reconexao",
         "Geracao de imagens gratuita integrada (Pollinations/Cloudflare)",
         "Documentacao unificada no MANUAL_GERAL_ZENITH",
-        "Correcoes de estabilidade"
+        "Corpo Godot reexportado com correcoes de tela preta e HDR desativado"
       ],
       "pacote": {
-        "tamanho": 75418996,
-        "sha256": "4097b042c1994a9dc16f90d2db6ca190f7cb59883a6cd6c1a9433e9e00ecc3e0"
+        "tamanho": 75419497,
+        "sha256": "41418d069c9f98baaa31085bcb8bdaf6306874b02cb85e4f586cc41c6a7fe1c6"
       },
       "launcher": {
         "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/ZenithLauncher.exe",
