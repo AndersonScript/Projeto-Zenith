@@ -33,7 +33,9 @@
   },
   "android": {
     "versao": "1.0",
-    "status": "em_testes",
-    "arquivo": "Zenith.apk"
+    "arquivo": "Zenith.apk",
+    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith.apk",
+    "sha256": "2b1d9c190274cdb148b2bec511fd5c793d7897dc9a2629cca2ca8187f842e04c",
+    "tamanho": 65389919
   }
 }

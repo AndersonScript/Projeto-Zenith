@@ -454,6 +454,9 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
     if(lm&&lm.sha256&&!/PREENCHER/.test(lm.sha256)){
       rod.appendChild(blocoHash("SHA-256 do Limpar"+(mb(lm.tamanho)?" · "+mb(lm.tamanho):""),lm.sha256,lm.arquivo));
     }
+    if(apk&&apk.sha256){
+      rod.appendChild(blocoHash("SHA-256 do Zenith.apk"+(mb(apk.tamanho)?" · "+mb(apk.tamanho):""),apk.sha256,apk.arquivo));
+    }
     box.appendChild(rod);
 
     if(cta){
