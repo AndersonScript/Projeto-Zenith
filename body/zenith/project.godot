@@ -1,0 +1,70 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+config/quit_on_go_back=false
+
+config/name="Zenith"
+run/main_scene="res://addons/vrm/node_constraint/icons/Akira_Body.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://icon.png"
+boot_splash/bg_color=Color(0.047, 0.051, 0.059, 1)
+boot_splash/show_image=true
+boot_splash/image="res://assets/zenith_splash.png"
+boot_splash/fullsize=true
+boot_splash/use_filter=true
+
+[autoload]
+
+VRMRuntimeBootstrap="*res://addons/vrm/vrm_runtime_bootstrap.gd"
+
+[display]
+window/hdr/request_hdr_output=false
+window/hdr/request_hdr_output.android=false
+window/per_pixel_transparency/allowed=true
+window/per_pixel_transparency/allowed.android=false
+window/size/transparent=true
+window/size/transparent.android=false
+window/size/borderless=true
+window/size/borderless.android=false
+window/subwindows/embed_subwindows=false
+window/subwindows/embed_subwindows.android=true
+window/ime/enabled=true
+
+window/size/viewport_width=420
+window/size/viewport_height=640
+window/size/viewport_width.android=420
+window/size/viewport_height.android=840
+
+window/stretch/aspect="expand"
+window/stretch/mode="disabled"
+window/stretch/mode.android="canvas_items"
+window/stretch/aspect.android="expand"
+
+window/handheld/orientation=1
+window/handheld/orientation.android=6
+
+[internationalization]
+
+rendering/glyph_cache_texture_size=2048
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/Godot-MToon-Shader/plugin.cfg", "res://addons/vrm/plugin.cfg", "res://addons/zenith_android/plugin.cfg")
+
+[physics]
+
+common/physics_ticks_per_second=30
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true
+renderer/rendering_method="gl_compatibility"
+environment/defaults/default_clear_color=Color(0, 0, 0, 0)

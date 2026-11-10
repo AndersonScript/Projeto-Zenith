@@ -1,0 +1,85 @@
+{
+  "_aviso": "Arquivo OPCIONAL só de apresentação (nomes, endereços, dicas). O prepare_pendrive.py REMOVE este arquivo da cópia de distribuição; sem ele o Zenith mostra só 'Minhas IAs' (endereço + chave + modelo).",
+  "versao": 1,
+  "provedores": [
+    {
+      "id": "gemini",
+      "nome": "Gemini",
+      "modelo": "gemini-2.5-flash",
+      "onde_pegar": "aistudio.google.com/apikey",
+      "dica": "Plano grátis generoso e o mais fácil pra começar."
+    },
+    {
+      "id": "openai",
+      "nome": "OpenAI",
+      "onde_pegar": "platform.openai.com/api-keys",
+      "dica": "Pago por uso, sem plano grátis."
+    },
+    {
+      "id": "claude",
+      "nome": "OpenRouter (Claude / Llama)",
+      "url": "https://openrouter.ai/api/v1",
+      "onde_pegar": "openrouter.ai/keys",
+      "dica": "Um único login dá acesso ao Claude, Llama e dezenas de outros modelos, incluindo opções gratuitas."
+    },
+    {
+      "id": "groq",
+      "nome": "Groq",
+      "url": "https://api.groq.com/openai/v1",
+      "onde_pegar": "console.groq.com/keys",
+      "dica": "Respostas muito rápidas e ótimo plano grátis; boa pedida se latência for prioridade."
+    }
+  ],
+  "servicos": [
+    {
+      "id": "tavily",
+      "nome": "Busca na web (Tavily — opcional)",
+      "onde_pegar": "tavily.com",
+      "dica": "OPCIONAL. A busca na web e de imagens já funciona SEM chave nem cadastro (usa buscadores públicos). Com uma chave da Tavily a busca de texto pode vir mais limpa; sem ela nada deixa de funcionar. O modo de aprovação fica em Configurações > Permissões > Buscar na web."
+    }
+  ],
+  "atalhos": [
+    {
+      "label": "Ollama (local)",
+      "nome": "Ollama",
+      "url": "http://localhost:11434/v1",
+      "modelo": "llama3.1"
+    },
+    {
+      "label": "LM Studio (local)",
+      "nome": "LM Studio",
+      "url": "http://localhost:1234/v1",
+      "modelo": ""
+    },
+    {
+      "label": "OpenRouter",
+      "nome": "OpenRouter",
+      "url": "https://openrouter.ai/api/v1",
+      "modelo": "openrouter/free"
+    },
+    {
+      "label": "Together AI",
+      "nome": "Together AI",
+      "url": "https://api.together.xyz/v1",
+      "modelo": ""
+    },
+    {
+      "label": "Cerebras (grátis, muito rápido)",
+      "nome": "Cerebras",
+      "url": "https://api.cerebras.ai/v1",
+      "modelo": "gpt-oss-120b"
+    },
+    {
+      "label": "Mistral (grátis; pede telefone e aceita treino)",
+      "nome": "Mistral",
+      "url": "https://api.mistral.ai/v1",
+      "modelo": "mistral-small-latest"
+    },
+    {
+      "label": "NVIDIA NIM (grátis; pede telefone)",
+      "nome": "NVIDIA NIM",
+      "url": "https://integrate.api.nvidia.com/v1",
+      "modelo": ""
+    }
+  ]
+}

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Zenith — Fundo Animado</title>
+<style>
+  :root{
+    --bg-0:#05080a;
+    --bg-1:#0a1418;
+    --cyan:#35f0ff;
+    --cyan-dim:#0e7c86;
+    --magenta:#ff4fd1;
+    --violet:#7c5cff;
+    --grid:#0f2c31;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{
+    width:100%;height:100%;
+    background:var(--bg-0);
+    overflow:hidden;
+    font-family:'SF Mono','JetBrains Mono',Consolas,monospace;
+  }
+  #stage{
+    position:relative;
+    width:100vw;height:100vh;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 38%, rgba(53,240,255,0.07), transparent 60%),
+      radial-gradient(ellipse 60% 45% at 80% 85%, rgba(255,79,209,0.06), transparent 65%),
+      linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
+  }
+
+  /* --- camada de grade / circuito --- */
+  #circuit{
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 42px 42px;
+    opacity:0.35;
+    mask-image: radial-gradient(ellipse 75% 75% at 50% 45%, black 30%, transparent 85%);
+    -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 45%, black 30%, transparent 85%);
+  }
+
+  canvas#rain{position:absolute; inset:0; display:block;}
+  canvas#nodes{position:absolute; inset:0; display:block;}
+
+  /* --- núcleo pulsante central: "presença" da Zenith --- */
+  #core{
+    position:absolute; left:50%; top:42%;
+    width:280px; height:280px;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    background: radial-gradient(circle, rgba(53,240,255,0.16) 0%, rgba(53,240,255,0.05) 40%, transparent 72%);
+    animation: breathe 4.2s ease-in-out infinite;
+    pointer-events:none;
+    filter: blur(1px);
+  }
+  #core::before{
+    content:"";
+    position:absolute; inset:0;
+    margin:auto;
+    width:6px;height:6px;
+    border-radius:50%;
+    background:var(--cyan);
+    box-shadow:0 0 18px 6px var(--cyan), 0 0 46px 18px rgba(53,240,255,0.35);
+    animation: coreflash 4.2s ease-in-out infinite;
+  }
+  @keyframes breathe{
+    0%,100%{ transform:translate(-50%,-50%) scale(0.92); opacity:0.55; }
+    50%{ transform:translate(-50%,-50%) scale(1.08); opacity:1; }
+  }
+  @keyframes coreflash{
+    0%,100%{ box-shadow:0 0 14px 4px var(--cyan), 0 0 34px 12px rgba(53,240,255,0.25); }
+    50%{ box-shadow:0 0 22px 8px var(--magenta), 0 0 60px 22px rgba(255,79,209,0.32); }
+  }
+
+  /* --- scanlines sutis --- */
+  #scan{
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode:overlay;
+    pointer-events:none;
+  }
+  #vignette{
+    position:absolute; inset:0;
+    box-shadow: inset 0 0 220px 40px rgba(0,0,0,0.75);
+    pointer-events:none;
+  }
+
+  /* --- rótulo de status, opcional, mostra integração com a UI da Zenith --- */
+  #hud{
+    position:absolute; left:22px; bottom:18px;
+    display:flex; align-items:center; gap:9px;
+    color:var(--cyan);
+    font-size:12px; letter-spacing:2px; text-transform:uppercase;
+    opacity:0.75;
+    text-shadow:0 0 8px rgba(53,240,255,0.6);
+  }
+  #hud .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--cyan);
+    box-shadow:0 0 8px 2px var(--cyan);
+    animation: blink 1.6s ease-in-out infinite;
+  }
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+
+  #wordmark{
+    position:absolute; right:24px; top:20px;
+    font-size:13px; letter-spacing:6px; color:var(--magenta);
+    text-shadow:0 0 10px rgba(255,79,209,0.55);
+    opacity:0.8;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="circuit"></div>
+  <canvas id="rain"></canvas>
+  <canvas id="nodes"></canvas>
+  <div id="core"></div>
+  <div id="scan"></div>
+  <div id="vignette"></div>
+  <div id="wordmark">AKIRA</div>
+  <div id="hud"><span class="dot"></span><span>sistema ativo — escutando</span></div>
+</div>
+
+<script>
+/* ============ CHUVA DE CARACTERES (katakana + binário + hex) ============ */
+const rainCanvas = document.getElementById('rain');
+const rctx = rainCanvas.getContext('2d');
+const GLYPHS = "アイウエオカキクケコサシスセソ0123456789ABCDEF#*+.:";
+let columns, drops, fontSize = 16;
+
+function resizeCanvases(){
+  [rainCanvas, document.getElementById('nodes')].forEach(c=>{
+    c.width = window.innerWidth;
+    c.height = window.innerHeight;
+  });
+  columns = Math.floor(rainCanvas.width / fontSize);
+  drops = new Array(columns).fill(0).map(()=> Math.random() * -100);
+}
+resizeCanvases();
+window.addEventListener('resize', resizeCanvases);
+
+function drawRain(){
+  rctx.fillStyle = 'rgba(5,8,10,0.14)';
+  rctx.fillRect(0,0,rainCanvas.width, rainCanvas.height);
+
+  rctx.font = fontSize + 'px monospace';
+  for(let i=0;i<columns;i++){
+    const glyph = GLYPHS[Math.floor(Math.random()*GLYPHS.length)];
+    const x = i * fontSize;
+    const y = drops[i] * fontSize;
+
+    const isSpark = Math.random() < 0.035;
+    rctx.fillStyle = isSpark ? '#ff4fd1' : (Math.random() < 0.12 ? '#bffcff' : 'rgba(53,240,255,0.55)');
+    rctx.shadowColor = isSpark ? '#ff4fd1' : '#35f0ff';
+    rctx.shadowBlur = isSpark ? 10 : 4;
+    rctx.fillText(glyph, x, y);
+    rctx.shadowBlur = 0;
+
+    if(y > rainCanvas.height && Math.random() > 0.975){
+      drops[i] = 0;
+    }
+    drops[i] += 0.35 + (i % 5) * 0.03;
+  }
+  requestAnimationFrame(drawRain);
+}
+drawRain();
+
+/* ============ NÓS DE CIRCUITO FLUTUANTES ============ */
+const nodesCanvas = document.getElementById('nodes');
+const nctx = nodesCanvas.getContext('2d');
+const NUM_NODES = 46;
+let nodes = [];
+
+function initNodes(){
+  nodes = [];
+  for(let i=0;i<NUM_NODES;i++){
+    nodes.push({
+      x: Math.random()*nodesCanvas.width,
+      y: Math.random()*nodesCanvas.height,
+      vx: (Math.random()-0.5)*0.18,
+      vy: (Math.random()-0.5)*0.18,
+      r: Math.random()*1.6 + 0.6,
+      pulse: Math.random()*Math.PI*2
+    });
+  }
+}
+initNodes();
+window.addEventListener('resize', initNodes);
+
+function drawNodes(){
+  nctx.clearRect(0,0,nodesCanvas.width, nodesCanvas.height);
+
+  for(const n of nodes){
+    n.x += n.vx; n.y += n.vy; n.pulse += 0.02;
+    if(n.x < 0 || n.x > nodesCanvas.width) n.vx *= -1;
+    if(n.y < 0 || n.y > nodesCanvas.height) n.vy *= -1;
+  }
+
+  for(let i=0;i<nodes.length;i++){
+    for(let j=i+1;j<nodes.length;j++){
+      const a = nodes[i], b = nodes[j];
+      const dx = a.x-b.x, dy = a.y-b.y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist < 130){
+        nctx.strokeStyle = `rgba(124,92,255,${(1 - dist/130) * 0.22})`;
+        nctx.lineWidth = 1;
+        nctx.beginPath();
+        nctx.moveTo(a.x,a.y);
+        nctx.lineTo(b.x,b.y);
+        nctx.stroke();
+      }
+    }
+  }
+
+  for(const n of nodes){
+    const glow = (Math.sin(n.pulse)+1)/2;
+    nctx.beginPath();
+    nctx.fillStyle = `rgba(53,240,255,${0.35 + glow*0.4})`;
+    nctx.shadowColor = '#35f0ff';
+    nctx.shadowBlur = 6 + glow*6;
+    nctx.arc(n.x, n.y, n.r + glow*0.8, 0, Math.PI*2);
+    nctx.fill();
+    nctx.shadowBlur = 0;
+  }
+  requestAnimationFrame(drawNodes);
+}
+drawNodes();
+</script>
+</body>
+</html>

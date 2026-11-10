@@ -1,0 +1,10 @@
+Bem-vindo ao Zenith!
+
+O Zenith é um assistente pessoal com avatar. Ele conversa, ajuda a programar, cria imagens e vídeos, organiza seus arquivos e muito mais.
+
+Antes de instalar, o essencial:
+  - O Zenith NUNCA faz nada no seu computador sem você aprovar.
+  - Suas chaves de IA, conversas e memória ficam só no seu computador.
+  - Não há telemetria: o programa não envia dados sobre o seu uso.
+
+O Windows pode mostrar o aviso "Windows protegeu seu PC" porque este instalador ainda não tem assinatura digital. Confira o código SHA-256 na página de download antes de continuar.

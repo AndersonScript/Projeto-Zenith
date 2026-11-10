@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://bbf1jxa0pg63l"]
+
+[ext_resource type="Script" uid="uid://334na5nithae" path="res://ui_manager.gd" id="1_jrmlp"]
+
+[node name="Window" type="Window" unique_id=1658990314]
+oversampling_override = 1.0
+
+[node name="ChatWindow" type="Window" parent="." unique_id=1358832628]
+oversampling_override = 1.0
+script = ExtResource("1_jrmlp")

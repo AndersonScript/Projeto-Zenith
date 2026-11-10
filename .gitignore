@@ -1,0 +1,52 @@
+.github/
+# Dados de quem usa — NUNCA vão para o GitHub
+config/settings.json
+config/conversations.json
+config/chaves*
+config/instalacao.json
+config/.admin_ok
+config/pendencias.json
+config/projetos/
+config/biblia/
+config/ZENITH.md
+config/creditos.txt
+memory_db/
+creations/
+models/
+temp/
+libs/
+tools/godot/
+tools/rvc/
+*.log
+zenith_log.txt
+
+# Builds e caches
+dist/
+build/
+dist_publico/
+dist_instalador/
+_resgate/
+*.spec
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.vscode/
+.idea/
+
+# Godot
+body/zenith/.godot/
+body/zenith/export/
+body/zenith/*.translation
+
+# Avatares: só entram se a LICENÇA permitir redistribuir (veja body/zenith/addons/avatars/LEIA-ME.md)
+*.vrm
+*.vrm.import
+
+# Binários pesados
+*.exe
+*.pck
+*.zip
+*.gguf
+*.onnx

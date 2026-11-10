@@ -1,0 +1,53 @@
+# ZENITH — dependências do lado Python ("Cérebro")
+# Instale com: pip install -r requirements.txt --break-system-packages
+customtkinter>=5.2.0
+websockets>=12.0
+openai>=1.0.0
+google-genai>=1.50.0 # v23: thinking_level (Gemini 3.x) precisa de SDK recente — rode: pip install -U google-genai. Antes: >=0.5.0 também funcionaria numa instalação nova (o pip já
+                    # pega a mais recente por padrão), mas travei aqui explicitamente
+                    # porque o modo econômico/pensante (thinking_config) depende de uma
+                    # versão não tão antiga do SDK — testado e confirmado com a 2.24.0
+chromadb>=0.5.0
+matplotlib>=3.8.0   # pra Zenith conseguir gerar gráficos de verdade quando
+                    # pedido (via execução de código Python aprovada)
+onnxruntime>=1.17.0  # a função de embedding padrão do chromadb (memória de
+                     # longo prazo) usa isso pra transformar texto em vetor —
+                     # sem isso: "onnxruntime python package is not installed"
+tokenizers>=0.15.0   # usado junto com onnxruntime pela mesma função de embedding
+Pillow>=10.0.0      # papel de parede do chat (Configurações > Aparência)
+edge-tts>=7.3.0     # voz gratuita da Zenith (fallback se não tiver ElevenLabs)
+                    # NÃO BAIXE ESTA VERSÃO: abaixo de 7.3.0 a voz fica MUDA. Em outubro de 2026 a
+                    # Microsoft trocou o token Sec-MS-GEC do serviço de voz da v1 para a v2, e o token
+                    # v1 passou a ser recusado com HTTP 403 (erro real, visto no zenith_log.txt do
+                    # Anderson). O 7.3.0 foi o primeiro a gerar o token v2. Conferido em 16/10/2026 com
+                    # o 7.3.1: gerou 44,7 KB de áudio em 1,49 s, sem erro.
+pygame-ce>=2.5.0    # toca o áudio da voz — "pygame-ce", NÃO "pygame" (esse não tem
+                    # wheel pro Python 3.14 ainda e falha ao tentar compilar do zero)
+requests>=2.31.0    # chamadas pra API da ElevenLabs
+plyer>=2.1.0        # OPCIONAL — notificação nativa do Windows quando uma ação em cadeia
+                    # termina com a Central fora de foco (sem ele, só pisca a barra de tarefas)
+pyserial>=3.5       # fala com Arduino/ESP32 (habilidade de Hardware)
+bleak>=0.22         # v1.10 — Bluetooth do carrinho (BLE, sem cabo). Sem ele o resto funciona; só o carrinho sem cabo fica sem.
+mss>=9.0.0          # captura de tela (habilidade de Visão)
+opencv-python-headless>=4.8.0   # captura de câmera (habilidade de Visão) — "headless" não
+                    # traz janela de GUI própria, só a parte de captura/codificação
+pywin32-ctypes>=0.2.2  # o PyInstaller precisa disso pra embutir o ícone no .exe (Windows)
+pyinstaller>=6.0.0  # só necessário pra gerar o Zenith.exe (build_exe.py)
+sympy>=1.12       # OPCIONAL (v26) — /derivar, /integrar e /limite: conta exata, conferida pelo programa. Sem ele, o resto funciona.
+sounddevice>=0.4.6  # captura o áudio do microfone (habilidade de Voz — entrada)
+numpy>=1.26.0       # sounddevice devolve os frames de áudio como array numpy
+faster-whisper>=1.0.0  # transcreve o áudio do microfone localmente (sem nuvem)
+psutil>=5.9         # OPCIONAL (v1.7) — /local recomendar mede RAM/CPU/disco. Sem ele, o resto funciona (no Windows a RAM vem da API do sistema).
+
+# --- RVC (conversão de voz) — OPCIONAL e PESADO ---------------------------
+# Só instale se for usar a troca de voz de verdade (Configurações > Voz >
+# RVC). Isso puxa fairseq + torch (compilação nativa) — em Windows,
+# costuma exigir o "Microsoft C++ Build Tools" instalado antes de rodar o
+# pip install, e o download inicial é de vários GB. Sem isso instalado, o
+# Zenith detecta a ausência e cai pra voz base automaticamente, sem travar
+# nada (ver zenith_interaction.py:_aplicar_rvc).
+# rvc-python>=0.1.5
+
+# --- v28 ---------------------------------------------------------------------
+imageio-ffmpeg>=0.5.1  # v28: traz o ffmpeg pronto (editar/criar vídeo: /video, <editar_video>). Sem ele, coloque o ffmpeg.exe em tools\ffmpeg\
+pypdf>=4.0.0           # v28: ler PDF (anexo e biblioteca de documentos). Sem ele, o resto dos anexos funciona normal.

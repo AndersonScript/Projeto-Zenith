@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NÃO COMPILADO. Declara o plugin para o Godot (plugin v2) e as permissões que ele usa.
+     O "package" NÃO fica aqui: o Android Gradle Plugin atual exige o `namespace` no build.gradle.kts. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- câmera (v1.19): o Godot pede em tempo de uso; a câmera não é obrigatória para o app instalar -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- captura de tela (v1.19): o Android exige serviço em primeiro plano do tipo mediaProjection -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- Bluetooth LE (carrinho): Android 12+ pede SCAN e CONNECT; antes disso, as antigas (limitadas ao Android 11) -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+    <application>
+        <service
+            android:name="com.zenith.android.ZenithCapturaService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+        <meta-data
+            android:name="org.godotengine.plugin.v2.ZenithAndroid"
+            android:value="com.zenith.android.ZenithAndroidPlugin" />
+    </application>
+</manifest>
