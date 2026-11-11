@@ -1,88 +1,61 @@
-# 🌟 Atualizações do Projeto Zenith
+# 🌟 Zenith — Registro Oficial de Atualizações & Melhorias
 
-> **Documento Oficial de Novidades e Aprimoramentos**  
-> *Versão:* **Zenith 1.0 / 1.1**  
-> *Autor:* **Anderson**  
-> *Repositório:* [github.com/AndersonScript/Projeto-Zenith](https://github.com/AndersonScript/Projeto-Zenith)  
+> **Projeto Zenith** — Assistente Pessoal com Avatar 3D VRM & Inteligência Artificial  
+> *Criador & Diretor do Projeto:* **Anderson**  
+> *Versão:* **1.18 (Android Mobile) / 1.0 (Windows PC)**  
+> *Data:* **10/11/2026**  
+> *Repositório GitHub:* [github.com/AndersonScript/Projeto-Zenith](https://github.com/AndersonScript/Projeto-Zenith)  
 > *Site Oficial:* [projeto-zenith-five.vercel.app](https://projeto-zenith-five.vercel.app)
 
 ---
 
 ## 📱 1. Versão Celular Android (`Zenith.apk`) 100% Autônoma
 
-A versão para celulares e tablets Android agora roda **totalmente no aparelho**, sem necessidade de nenhum computador ligado ou programas externos!
+A versão de celular agora roda **100% no aparelho**, sem depender do computador estar ligado! Todas as correções críticas de abertura, estabilidade e visual foram resolvidas e verificadas:
 
-### ✨ Principais Melhorias no Celular:
-* **Interface Perfeita para a Tela do Celular (Correção de Escala):**
-  * Corrigida a compatibilidade de resolução lógica do canvas do Godot. A interface não é mais empurrada para fora da tela nem cortada nas laterais em aparelhos com telas compridas (como 20:9 e 21:9).
-  * Todos os botões receberam áreas de toque confortáveis (mínimo de 44 px) para facilitar o uso com os dedos.
-* **Janelinha da VRM (Picture-in-Picture) Redimensionável:**
-  * O avatar 3D pode ser ajustado facilmente com os novos botões **`➖`** e **`➕`** na barra superior, permitindo escolher o quanto da tela você quer dedicar ao avatar e ao chat (de 22% a 65%).
-* **Alternância Rápida de Enquadramento:**
-  * Botão de visualização com um toque para alternar entre:
-    * **`👤 Busto`**: Foco no rosto e expressões faciais da Zenith.
-    * **`🔲 Médio`**: Visão da cintura para cima, ideal para conversas gesticuladas.
-    * **`🧍 Todo`**: Visão de corpo inteiro dos pés à cabeça.
-* **Modo Maximizar Corpo Todo (`⛶ Maximizar`):**
-  * Ao tocar em **`⛶ Maximizar`**, o avatar ocupa a tela inteira em destaque, com a câmera enquadrando o corpo todo com folga para saltos e mortais.
-  * No topo da tela permanece a **Barra de Atividade em Tempo Real** mostrando exatamente o que a Zenith está fazendo (pesquisando, pensando, falando) com botões rápidos de **`⏹ Parar`**, microfone e restauração do chat.
-* **Suporte Completo ao Modo Paisagem (Virar o Celular de Lado):**
-  * Ao girar o celular, a tela se divide automaticamente de forma equilibrada: o avatar 3D fica posicionado na metade esquerda com enquadramento centrado, e o chat na metade direita, sem que nenhum botão fique espremido ou cortado.
-* **Segurança e Isolamento Local:**
-  * As chaves de API das IAs no celular ficam guardadas com criptografia de ponta (`user://chaves_local.bin`), utilizando chave derivada do hardware do próprio aparelho (`OS.get_unique_id()`). Nada sai do seu celular sem sua autorização.
-* **Pesquisa Web Integrada Direto no Aparelho:**
-  * Pesquisa nativa via DuckDuckGo sem depender de servidores intermediários, permitindo à Zenith buscar notícias e informações na web pelo próprio celular.
+### 🛠️ Correção do Fechamento Involuntário (Crash na Abertura)
+* **Diagnóstico da Causa Raiz:** Ao abrir o app no modo celular standalone, uma chamada recursiva síncrona infinita ocorria entre o carregamento da lista de conversas (`_emitir_conversas_mobile`) e o manipulador de interface (`_on_conversation_loaded`), estourando a pilha de execução do Godot (Stack Overflow após 1024 chamadas em milissegundos). Além disso, havia um erro de sintaxe de escopo em constantes de layout.
+* **Solução Definitiva:** Adicionadas travas de segurança atômicas (`_emitindo_conversas` e `_conversa_inicial_carregada`), carregamento postergado e resolução das variáveis de tela. O aplicativo agora inicializa instantaneamente e com estabilidade máxima, sem travar nem fechar!
 
----
+### 🎨 Visual & Enquadramento Impecável (Estilo Claude)
+* **Barra Superior Limpa & Arejada:** Baseada no design minimalista e moderno do aplicativo Claude:
+  * Botão de menu lateral **`☰`** na esquerda com acesso rápido a conversas e configurações.
+  * Título **Zenith** amplo, nítido e centralizado — sem cortes ou textos espremidos ("Con...").
+  * Botões de controle de avatar compactos e elegantes com cantos arredondados:
+    * **`👤 Busto`**: Foco no rosto e nas expressões faciais detalhadas.
+    * **`🔲 Médio`**: Visão da cintura para cima, ideal para conversas com gestos naturais.
+    * **`🧍 Todo`**: Visão completa da cabeça aos pés.
+    * **`⛶`**: Maximizar avatar em tela cheia para ver acrobacias e danças.
+* **Pílula de Digitação no Rodapé:**
+  * Caixa de texto arredondada estilo pílula moderna com botões de microfone e envio integrados.
+  * Margem de segurança inferior garantida (14-16 px) para nunca ficar colada ou encoberta pela barra de navegação/gestos do Android.
+* **Suporte Completo ao Modo Paisagem (Celular Deitado):**
+  * Divisão harmoniosa automática: avatar 3D à esquerda e chat à direita, sem sobreposição de controles.
 
-## 🤸 2. Movimentos e Acrobacias Sem Limitações
-
-A Zenith agora possui liberdade total de movimentação corporal em 3D, tanto no computador quanto no celular!
-
-* **Sem Trava de Altura ou Giros:**
-  * O limite de salto vertical foi expandido para até **4.5 metros** de altura e rotações completas de **720°**.
-* **Compensação Dinâmica de Centro de Massa:**
-  * Implementado cálculo de pivô dinâmico no centro de massa (altura da cintura/quadril) no motor 3D. Quando a Zenith realiza mortais ou estrelas, o corpo gira realisticamente pelo centro no ar, sem quebrar as articulações e sem afundar no chão.
-* **Biblioteca de Movimentos Prontos Embutidos:**
-  * **`mortal`**: Mortal para trás clássico (backflip) com arco completo de 360°.
-  * **`mortal_frente`**: Mortal frontal com rotação invertida.
-  * **`estrela`**: Estrelinha acrobática lateral completa (cartwheel).
-  * **`pulo_alto`**: Salto vertical acrobático de grande alcance.
-  * **`pulo_duplo`**: Sequência de dois saltos consecutivos.
-  * **`dancar`**: Dança rítmica com movimentação de braços e tronco.
-  * **`girar`**: Giro de corpo inteiro com celebração.
-  * **`reverencia`**: Inclinação cortês e graciosa.
-  * **`careta`**: Expressão divertida e descontraída.
-  * **`aceno_grande`**: Aceno alegre e visível de boas-vindas.
-* **Criação Livre de Movimentos pela IA:**
-  * Qualquer modelo de IA conectado agora pode criar novas acrobacias inéditas em tempo real enviando tags `<criar_movimento>{...}</criar_movimento>` com quadros de animação salvos localmente.
+### 🖼️ Geração Gratuita de Imagens no Celular
+* **Comando `/imagem` Standalone:** Agora você pode pedir `/imagem <descrição>` ou "desenhe um astronauta na lua" diretamente no celular. A Zenith gera e exibe a imagem em alta resolução via Pollinations sem custos e sem requerer chaves de API pagas.
 
 ---
 
-## 🔍 3. Correção da Pesquisa Web e Status em Tempo Real
+## 🤸 2. Movimentos e Acrobacias Sem Limites
 
-* **Fim do Falso "Terminou Antes da Hora":**
-  * Corrigida a sincronização de estado entre o Cérebro e a interface visual. Antes, o status da barra superior ("Pesquisando...") podia se apagar no momento em que a voz terminava de falar a frase introdutória, dando a falsa impressão de término antes da pesquisa realmente acabar.
-* **Status Preciso Passo a Passo:**
-  * O indicador de atividade agora reflete fielmente cada etapa do processo:
-    1. `🔎 Pesquisando na web: ...` (busca nos índices de pesquisa)
-    2. `⚡ Analisando resultados e escrevendo a resposta...` (síntese profunda dos dados)
-    3. `🗣️ Zenith falando...` (resposta final e reprodução por voz)
-    4. `🟢 Zenith pronta` (retorno ao estado ocioso)
-* **Leitura Multi-Passo:**
-  * Quando a resposta exige ler detalhes de links encontrados, o Cérebro continua o processamento e mantém a barra de atividade ativa até a conclusão completa.
+Tanto no computador quanto no celular Android, o avatar 3D conta com física de movimentos acrobáticos completa:
+* **Mortais:** Mortais para trás e mortais para frente acionados por voz ou texto ("dê um mortal", "mortal de frente").
+* **Saltos:** Pulo normal, pulo alto e salto duplo.
+* **Acrobacias & Dança:** Estrela/estrelinha lateral, giro 360°, dança, reverência e careta expressiva.
+* **Sem Bloqueios de Câmera:** Os limites rígidos de altura de salto foram removidos para permitir acrobacias aéreas completas.
 
 ---
 
-## 📥 4. Como Baixar e Atualizar
+## 💻 3. Versão Desktop PC (Windows)
 
-* **Celular Android:**
-  * Baixe o APK oficial diretamente em:  
-    👉 **[Download Zenith.apk (GitHub)](https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith.apk)**  
-    *Ou pelo site oficial:* [projeto-zenith-five.vercel.app](https://projeto-zenith-five.vercel.app)
-* **Computador (Windows):**
-  * O assistente oficial e atualizador de 1 clique está disponível no site oficial ou na aba de Releases do GitHub.
+* **Launcher com Escolha Livre de Pastas:** O instalador/launcher permite ao usuário escolher onde instalar o Zenith e onde salvar os arquivos e projetos (ex: Drive C:, D: ou Pendrive).
+* **Compatibilidade e Modo Headless:** Execução em modo invisível ou em janela flutuante com suporte a transparência de fundo (DWM).
+* **Chaves de IA e Modelos:** Suporte nativo a Gemini (Google), Groq, OpenAI, Anthropic Claude e modelos locais.
 
 ---
 
-*Projeto Zenith — Criado com carinho por Anderson.*
+## 📦 4. Como Baixar e Instalar
+
+* **📱 Android:** Baixe o arquivo **`Zenith.apk`** diretamente na pasta **Downloads** do seu computador ou celular, ou baixe pela aba [Releases do GitHub](https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith.apk). Basta tocar e instalar.
+* **💻 Windows:** Baixe o **`ZenithLauncher.exe`** ou o pacote completo pelo site oficial: [projeto-zenith-five.vercel.app](https://projeto-zenith-five.vercel.app).

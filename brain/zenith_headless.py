@@ -360,7 +360,7 @@ class ZenithHeadlessBrain:
                 est_t, txt_t = self._cartao_rodando_topo
                 self._atividade(est_t, txt_t)
                 return
-            if getattr(self.core, "is_processing", False):
+            if getattr(getattr(self, "core", None), "is_processing", False):
                 self._atividade("pensando")
                 return
             if bool(getattr(self, "_pending_approvals", None)):
@@ -582,15 +582,26 @@ class ZenithHeadlessBrain:
         info = ia.interpretar_pedido(args.get("texto", ""))
         self._atividade(*parar.estado_da_acao("image_gen"))
         try:
-            with self._novo_progresso("Criando a imagem com IA", detalhe="Esperando o Google desenhar…", cancelavel=True,
+            with self._novo_progresso("Criando a imagem com IA", detalhe="Esperando o gerador desenhar…", cancelavel=True,
                                       avisar_no_fim=False):
-                r = ia.gerar(info["descricao"], self.settings.get("gemini_key", ""), CREATION_DIR,
-                             modelo=ia.modelo_para(info["qualidade"], self.settings), proporcao=info["proporcao"])
-            if parar.cancelado_desde(geracao):            # você mandou parar enquanto o Google trabalhava
+                chave_gem = str(self.settings.get("gemini_key", "") or "").strip()
+                if not chave_gem:
+                    r = ia.gerar_gratis(info["descricao"], CREATION_DIR, proporcao=info["proporcao"], settings=self.settings)
+                else:
+                    try:
+                        r = ia.gerar(info["descricao"], chave_gem, CREATION_DIR,
+                                     modelo=ia.modelo_para(info["qualidade"], self.settings), proporcao=info["proporcao"])
+                    except ia.ErroImagem as e_gem:
+                        if "O Google barrou por COTA" in str(e_gem) or "O Google não liberou imagem" in str(e_gem):
+                            r = ia.gerar_gratis(info["descricao"], CREATION_DIR, proporcao=info["proporcao"], settings=self.settings)
+                        else:
+                            raise
+            if parar.cancelado_desde(geracao):            # você mandou parar enquanto trabalhava
                 return
             extra = f"\n{r['texto']}" if r.get("texto") else ""
+            custo_txt = "Gerado gratuitamente." if "Pollinations" in r.get("modelo", "") or "Cloudflare" in r.get("modelo", "") else ia.aviso_de_custo(info["qualidade"])
             self.bridge.send({"action": "chat_message", "sender": "ai",
-                              "text": f"🎨 Pronto! Criei a imagem com {r['modelo']}.{extra}\n({ia.aviso_de_custo(info['qualidade'])})"})
+                              "text": f"🎨 Pronto! Criei a imagem com {r['modelo']}.{extra}\n({custo_txt})"})
             self.bridge.send({"action": "chat_image", "path": r["caminho"], "caption": "Imagem criada com IA"})
         except ia.ErroImagem as e:
             if not parar.cancelado_desde(geracao):

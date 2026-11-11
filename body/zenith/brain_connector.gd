@@ -240,18 +240,28 @@ func _emitir_configuracoes_mobile() -> void:
 	}
 	emit_signal("settings_data", conf)
 
+var _emitindo_conversas: bool = false
+var _conversa_inicial_carregada: bool = false
+
 func _emitir_conversas_mobile() -> void:
+	if _emitindo_conversas:
+		return
+	_emitindo_conversas = true
 	emit_signal("conversations_list", [
 		{"id": "celular_main", "title": "Conversa do Celular", "active": true, "updated_at": "Hoje"}
 	])
-	if not _historico_mobile.is_empty():
-		emit_signal("conversation_loaded", "celular_main", "Conversa do Celular", _historico_mobile)
-	else:
-		var boas_vindas = "Olá! Eu sou a Zenith! 🌟\n\nEstou funcionando 100% no seu celular, sem depender de computador! Para conversarmos, adicione sua chave de IA no menu lateral ⚙ > Chaves de IA (a chave do Google Gemini é gratuita!)."
-		var hora = Time.get_time_string_from_system().substr(0, 5)
-		_historico_mobile.append({"text": boas_vindas, "sender": "ai", "ts": hora})
-		_salvar_historico_mobile()
-		emit_signal("akira_chat_message", "ai", boas_vindas)
+	if not _conversa_inicial_carregada:
+		_conversa_inicial_carregada = true
+		_carregar_historico_mobile()
+		if not _historico_mobile.is_empty():
+			emit_signal("conversation_loaded", "celular_main", "Conversa do Celular", _historico_mobile)
+		else:
+			var boas_vindas = "Olá! Eu sou a Zenith! 🌟\n\nEstou funcionando 100% no seu celular, sem depender de computador! Para conversarmos, adicione sua chave de IA no menu lateral ⚙ > Chaves de IA (a chave do Google Gemini é gratuita!)."
+			var hora = Time.get_time_string_from_system().substr(0, 5)
+			_historico_mobile.append({"text": boas_vindas, "sender": "ai", "ts": hora})
+			_salvar_historico_mobile()
+			emit_signal("akira_chat_message", "ai", boas_vindas)
+	_emitindo_conversas = false
 
 const CHAVES_CRIPTO_PATH := "user://chaves_local.bin"
 
@@ -389,6 +399,21 @@ func _processar_chat_standalone(text: String, anexos: Array = []) -> void:
 		_entregar_resposta_ia("Abrindo o link no seu navegador: " + text.strip_edges())
 		return
 	
+	# 2.5 Geração de imagem gratuita via Pollinations (funciona standalone no celular sem PC e sem chave!)
+	var prompt_img = ""
+	for prefixo_img in ["/imagem ", "gere uma imagem de ", "gere uma imagem ", "crie uma imagem de ", "crie uma imagem ", "desenhe ", "desenha "]:
+		if t_lower.begins_with(prefixo_img):
+			prompt_img = text.substr(prefixo_img.length()).strip_edges()
+			break
+	if prompt_img != "":
+		var url_img = "https://image.pollinations.ai/prompt/" + prompt_img.uri_encode() + "?width=1024&height=1024&nologo=true"
+		_entregar_resposta_ia("🎨 Aqui está a sua imagem gerada gratuitamente:
+
+[url=" + url_img + "]" + url_img + "[/url]
+
+*(Toque no link para visualizar e salvar em alta definição!)*")
+		return
+
 	# 3. Chaves de IA
 	var chaves = _carregar_chaves_locais_dict()
 	var prov_escolhido = _provedor_atual

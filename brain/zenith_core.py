@@ -1,4 +1,4 @@
-﻿#  ZENITH — Sistema de IA Companheira Corporificada
+#  ZENITH — Sistema de IA Companheira Corporificada
 #  Criado por Anderson. Todos os créditos de criação são dele.
 #
 #  zenith_core.py — O Cérebro: pensa, tem persona, decide ações.
@@ -1865,9 +1865,10 @@ antes da tag. Nunca esconda o que o código faz.
             chaves = [chave_unica] if chave_unica else []
         if not chaves:
             try:
-                r = ia.gerar_pollinations(info["descricao"] or prompt, CREATION_DIR, proporcao=info["proporcao"])
-                self._midias.append(r["caminho"])
-                return f"🎨 Gerei a imagem gratuitamente via {r['modelo']} (sem chave do Gemini configurada)."
+                r = ia.gerar_gratis(info["descricao"] or prompt, CREATION_DIR, proporcao=info["proporcao"], settings=self.settings)
+                self._midias.append({"path": r["caminho"], "caption": "Imagem criada com IA"})
+                self._midias = self._midias[-self.MAX_MIDIAS:]
+                return f"🎨 Gerei a imagem gratuitamente via {r['modelo']} (sem chave do Gemini configurada).\nSalva em: {r['caminho']}"
             except Exception as e:
                 return f"🎨 Sem chave do Gemini e falha no gerador gratuito: {e}"
         r, ultimo = None, None
@@ -1882,7 +1883,12 @@ antes da tag. Nunca esconda o que o código faz.
                 motivo = self._rotador_erro("gemini", chave, e)
                 if motivo in ("cota", "invalida") and len(chaves) > 1:
                     continue
-                return f"{e}\n\n(Posso fazer uma versão simples por código — meme, cartaz ou citação — se você quiser.)"
+                break
+        if r is None and ultimo is not None and ("O Google barrou por COTA" in str(ultimo) or "O Google não liberou imagem" in str(ultimo)):
+            try:
+                r = ia.gerar_gratis(info["descricao"] or prompt, CREATION_DIR, proporcao=info["proporcao"], settings=self.settings)
+            except Exception:
+                r = None
         if r is None:
             return f"{ultimo}\n\n(Posso fazer uma versão simples por código — meme, cartaz ou citação — se você quiser.)"
         self._midias.append({"path": r["caminho"], "caption": "Imagem criada com IA"})

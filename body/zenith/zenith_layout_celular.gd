@@ -20,6 +20,8 @@ extends RefCounted
 #                                     --visual-memorias   --visual-aprovacao   --celular-teclado=330   --visual-voltar   --visual-modelo=63   (e o já existente --visual-abrir=Voz)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
+const FRACAO_AVATAR := 0.34        # a faixa do avatar ocupa ~1/3 da altura
+const AVATAR_MIN := 160            # ...mas nunca menos que isto (px)
 const GAVETA_MAX := 300            # largura máxima da gaveta (px); em tela estreita é 82% da largura
 const ALVO_TOQUE := 44             # tamanho mínimo de um botão para o dedo (px)
 
@@ -66,15 +68,16 @@ func _tamanho_da_tela() -> Vector2i:
 
 # Quanto da borda de baixo o sistema ocupa (barra de gestos). Convertido para escala lógica.
 func _margem_baixo() -> int:
+	var pad_min := 14
 	if OS.get_name() != "Android":
-		return 0
+		return pad_min
 	var seguro: Rect2i = DisplayServer.get_display_safe_area()
 	var wsz = DisplayServer.window_get_size(0)
 	if seguro.size.y <= 0 or wsz.y <= 0:
-		return 0
+		return pad_min
 	var sobra_px = maxi(0, wsz.y - (seguro.position.y + seguro.size.y))
 	var escala = float(tela.y) / float(wsz.y)
-	return int(round(float(sobra_px) * escala))
+	return maxi(pad_min, int(round(float(sobra_px) * escala)))
 
 # Chamado pela ui_manager NA HORA (antes do aplicar() adiado): textos e botões criados depois (listas, avisos) também são
 # ajustados. Se ligasse só no aplicar(), um cartão aberto antes dele (ex.: nos testes) escaparia.
@@ -87,7 +90,7 @@ func aplicar(janela) -> void:
 	if ui == null or not is_instance_valid(ui):
 		return
 	tela = _tamanho_da_tela()
-	faixa_avatar = maxi(AVATAR_MIN, int(tela.y * FRACAO_AVATAR))
+	faixa_avatar = maxi(AVATAR_MIN, int(tela.y * fracao_avatar))
 	_posicionar_janela()
 	_esconder_o_que_e_de_pc()
 	_montar_gaveta()
@@ -119,7 +122,7 @@ func aplicar(janela) -> void:
 
 func _ao_tamanho_mudou() -> void:
 	tela = _tamanho_da_tela()
-	faixa_avatar = maxi(AVATAR_MIN, int(tela.y * FRACAO_AVATAR))
+	faixa_avatar = maxi(AVATAR_MIN, int(tela.y * fracao_avatar))
 	_posicionar_janela()
 	_enquadrar_avatar()
 
@@ -176,7 +179,8 @@ func _atualizar_botoes_modo() -> void:
 			"medio": _btn_modo_ref.text = "🔲 Médio"
 			"corpo_todo": _btn_modo_ref.text = "🧍 Todo"
 	if _btn_max_ref != null and is_instance_valid(_btn_max_ref):
-		_btn_max_ref.text = "🗗 Restaurar" if maximizado else "⛶ Maximizar"
+		_btn_max_ref.text = "🗗" if maximizado else "⛶"
+		_btn_max_ref.tooltip_text = "Restaurar layout" if maximizado else "Maximizar Avatar (corpo todo)"
 
 func _posicionar_janela() -> void:
 	if ui == null or not is_instance_valid(ui):
@@ -210,6 +214,25 @@ func _posicionar_janela() -> void:
 		ui.size = Vector2i(tela.x, maxi(180, base - topo))
 		ui.position = Vector2i(0, maxi(0, base - ui.size.y))
 
+func _estilizar_botao_topo(btn: Button) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.14, 0.16, 0.22, 0.85)
+	sb.border_color = Color(0.28, 0.32, 0.42, 0.70)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(8)
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
+	var sb_hover := sb.duplicate()
+	sb_hover.bg_color = Color(0.20, 0.24, 0.32, 0.95)
+	sb_hover.border_color = Color(0.40, 0.45, 0.60, 0.90)
+	btn.add_theme_stylebox_override("normal", sb)
+	btn.add_theme_stylebox_override("hover", sb_hover)
+	btn.add_theme_stylebox_override("pressed", sb_hover)
+	btn.add_theme_stylebox_override("focus", sb)
+	btn.add_theme_color_override("font_color", Color(0.92, 0.93, 0.96))
+
 func _esconder_o_que_e_de_pc() -> void:
 	if ui.get("move_btn") != null:
 		ui.move_btn.visible = false          # "mover a janela do avatar": só faz sentido com duas janelas
@@ -222,49 +245,36 @@ func _esconder_o_que_e_de_pc() -> void:
 		titulo.custom_minimum_size.x = 0
 		titulo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		titulo.clip_text = true
+		titulo.add_theme_font_size_override("font_size", 16)
 		
-		# Botão diminuir tamanho da janela do avatar
-		var btn_dim := Button.new()
-		btn_dim.text = "➖"
-		btn_dim.tooltip_text = "Diminuir janela da VRM"
-		btn_dim.focus_mode = Control.FOCUS_NONE
-		btn_dim.custom_minimum_size = Vector2(36, ALVO_TOQUE)
-		btn_dim.pressed.connect(diminuir_janela_avatar)
-		_btn_diminuir_ref = btn_dim
-		titulo.get_parent().add_child(btn_dim)
-		
-		# Botão aumentar tamanho da janela do avatar
-		var btn_aum := Button.new()
-		btn_aum.text = "➕"
-		btn_aum.tooltip_text = "Aumentar janela da VRM"
-		btn_aum.focus_mode = Control.FOCUS_NONE
-		btn_aum.custom_minimum_size = Vector2(36, ALVO_TOQUE)
-		btn_aum.pressed.connect(aumentar_janela_avatar)
-		_btn_aumentar_ref = btn_aum
-		titulo.get_parent().add_child(btn_aum)
-
 		# Botão alternar enquadramento (Busto -> Médio -> Corpo Todo)
 		var btn_modo := Button.new()
 		btn_modo.text = "👤 Busto"
-		btn_modo.tooltip_text = "Alternar enquadramento: Busto -> Médio -> Corpo Todo"
+		btn_modo.tooltip_text = "Alternar enquadramento do avatar: Busto -> Médio -> Corpo Todo"
 		btn_modo.focus_mode = Control.FOCUS_NONE
-		btn_modo.custom_minimum_size = Vector2(76, ALVO_TOQUE)
+		btn_modo.custom_minimum_size = Vector2(68, 34)
+		btn_modo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		btn_modo.add_theme_font_size_override("font_size", 12)
+		_estilizar_botao_topo(btn_modo)
 		btn_modo.pressed.connect(alternar_modo_avatar)
 		_btn_modo_ref = btn_modo
 		titulo.get_parent().add_child(btn_modo)
 		
-		# Botão Maximizar (Corpo Todo da cabeça aos pés)
+		# Botão Maximizar (ícone compacto moderno estilo Claude / app mobile)
 		var btn_max := Button.new()
-		btn_max.text = "⛶ Maximizar"
-		btn_max.tooltip_text = "Maximizar Avatar (ver o corpo todo da cabeça aos pés)"
+		btn_max.text = "⛶"
+		btn_max.tooltip_text = "Maximizar Avatar (corpo todo da cabeça aos pés)"
 		btn_max.focus_mode = Control.FOCUS_NONE
-		btn_max.custom_minimum_size = Vector2(92, ALVO_TOQUE)
+		btn_max.custom_minimum_size = Vector2(34, 34)
+		btn_max.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		btn_max.add_theme_font_size_override("font_size", 14)
+		_estilizar_botao_topo(btn_max)
 		btn_max.pressed.connect(maximizar_avatar)
 		_btn_max_ref = btn_max
 		titulo.get_parent().add_child(btn_max)
 		
 		for c in titulo.get_parent().get_children():
-			if c.get_class() == "Control":                          # os espaçadores do PC, que roubariam a folga do título
+			if c.get_class() == "Control" and c != titulo and c != _menu_btn and c != btn_modo and c != btn_max and c != ui.get("status_dot"):
 				c.visible = false
 	_montar_faixa_de_atividade()
 

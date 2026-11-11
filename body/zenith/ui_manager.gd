@@ -782,7 +782,8 @@ func _on_conversation_loaded(id: String, title: String, messages: Array):
 		c.queue_free()
 	for m in messages:
 		_add_bubble(String(m.get("text", "")), String(m.get("sender", "ai")), String(m.get("ts", "")))
-	if brain:
+	var eh_celular: bool = OS.get_name() == "Android" or OS.get_cmdline_user_args().has("--layout-celular")
+	if brain and not eh_celular:
 		brain.request_conversations()  # atualiza destaque de "ativa" na lista
 
 

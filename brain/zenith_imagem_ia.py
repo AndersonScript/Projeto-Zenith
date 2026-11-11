@@ -1,4 +1,4 @@
-﻿"""
+"""
 Zenith — IMAGENS POR IA (v27): os "dons artísticos" da Zenith.
 
 O que o Anderson pediu (e reforçou em 11/10/2026): não era só o autorretrato — era melhorar os dons artísticos dela em
@@ -261,3 +261,15 @@ def gerar_cloudflare(prompt: str, account_id: str, token: str, pasta, proporcao:
     caminho = saida / f"ia_{carimbo}.png"
     caminho.write_bytes(dados)
     return {"caminho": str(caminho), "modelo": "Cloudflare Workers AI (FLUX.1)", "texto": "Gerado via Cloudflare Workers AI."}
+
+def gerar_gratis(prompt: str, pasta, proporcao: str = "1:1", settings=None, agora=None) -> dict:
+    """Tenta Cloudflare Workers AI (se configurado) e cai automaticamente para Pollinations (100% grátis e sem chave)."""
+    acc = str((settings.get("cloudflare_account_id") if settings else "") or "").strip()
+    tok = str((settings.get("cloudflare_api_token") if settings else "") or "").strip()
+    if acc and tok:
+        try:
+            return gerar_cloudflare(prompt, acc, tok, pasta, proporcao=proporcao, agora=agora)
+        except Exception:
+            pass
+    return gerar_pollinations(prompt, pasta, proporcao=proporcao, agora=agora)
+

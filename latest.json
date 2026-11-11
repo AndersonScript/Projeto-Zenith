@@ -32,10 +32,11 @@
     "tamanho": 12782131
   },
   "android": {
-    "versao": "1.0",
+    "versao": "1.18",
     "arquivo": "Zenith.apk",
     "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith.apk",
-    "sha256": "7cc6964f28067071595a163d090e8f4dc66518f8f723a0b7841568291223e786",
-    "tamanho": 65422687
+    "sha256": "28b724605bc94b58aae7779b330c8e332ac18054ee2baed7b00f5c29e2ee8248",
+    "tamanho": 65426783,
+    "notas": "Visual estilo Claude, sem travamentos na abertura, comandos de imagem grátis e acrobacias completas."
   }
 }
