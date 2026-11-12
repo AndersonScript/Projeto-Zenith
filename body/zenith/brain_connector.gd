@@ -49,6 +49,8 @@ signal atualizacao_disponivel(info)
 signal ponte_mensagem(dados)
 signal desempenho_estado(dados)
 signal desempenho_config(dados)
+signal email_ponte_dados(dados)
+signal email_ponte_teste_resultado(dados)
 
 var _was_open: bool = false
 var _reconnect_cooldown: float = 0.0
@@ -893,6 +895,10 @@ func _process_brain_message(json_string):
 					emit_signal("desempenho_estado", data)
 				"desempenho_config":
 					emit_signal("desempenho_config", data)
+				"email_ponte_dados":
+					emit_signal("email_ponte_dados", data)
+				"email_ponte_teste_resultado":
+					emit_signal("email_ponte_teste_resultado", data)
 	else:
 		print("Erro ao fazer parse do JSON do cérebro")
 		
@@ -917,6 +923,16 @@ func request_desempenho():
 
 func aplicar_desempenho(recursos: Dictionary):
 	send_to_brain({"action": "desempenho_aplicar", "recursos": recursos})
+
+# v1.20 — Ponte por E-mail (Celular <-> PC)
+func email_ponte_pedir():
+	send_to_brain({"action": "email_ponte_obter"})
+
+func email_ponte_salvar(config: Dictionary):
+	send_to_brain({"action": "email_ponte_salvar", "config": config})
+
+func email_ponte_testar(config: Dictionary):
+	send_to_brain({"action": "email_ponte_testar", "config": config})
 
 func send_to_brain(data_dict: Dictionary):
 	var state = websocket.get_ready_state()

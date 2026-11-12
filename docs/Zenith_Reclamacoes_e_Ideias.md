@@ -258,3 +258,21 @@ Todas as pendências listadas anteriormente na Parte 5 / Parte 7 e as lacunas da
   - No celular (Android), cada aplicativo roda dentro de uma **Sandbox (caixa de areia de segurança)** imposta pelo sistema operacional. Nenhum aplicativo tem permissão de bisbilhotar ou extrair cookies, sessões ou dados de login de outros aplicativos como o Google Chrome.
   - Além de inseguro e sujeito a bloqueios de conta pela Cloudflare/Google, **não é necessário**: a chave de API gratuita do Google AI Studio (`AIzaSy...`) é **oficial, 100% gratuita, não pede cartão de crédito e não expira**.
   - Com a correção de modelos aplicada na v1.19, a chave do Google AI Studio funciona perfeitamente, com velocidade máxima e respostas completas.
+---
+
+## PARTE 13 — Conexão Celular ↔ PC por E-mail (Sem Banco de Dados Central) (12/11/2026)
+
+### I11 — “Conectar o celular com o computador pelo e-mail sem banco de dados na nuvem (totalmente anônimo)” ✅
+- **Ideia do Anderson:** Criar uma sincronização e conexão entre o celular e o computador sem colocar banco de dados centralizado (como Supabase) e sem colocar dados no Google Drive, mantendo o sistema 100% anônimo para o criador do projeto, com custo R$ 0,00 e permitindo que o usuário na rua pelo celular peça coisas do PC e o PC envie de volta.
+- **Feito em `brain/zenith_email_bridge.py`, `brain/zenith_headless.py`, `body/zenith/zenith_email_page.gd` e `body/zenith/ui_manager.gd`:**
+  - **Módulo `ZenithEmailBridge`:** Monitoramento em segundo plano via IMAP SSL (porta 993) e envio via SMTP SSL (porta 465).
+  - **Zero Banco Central:** Cada usuário utiliza sua própria conta pessoal de e-mail (Gmail, Outlook, etc.). Nada passa por servidores do criador.
+  - **Comandos Remotos via E-mail:**
+    - `[Zenith] status`: Devolve uso de CPU, RAM, disco e tempo ligado do PC.
+    - `[Zenith] print`: Captura a tela do PC e envia a foto anexada para o celular.
+    - `[Zenith] buscar <termo>`: Procura arquivos com segurança nas pastas do usuário (Área de Trabalho, Downloads, Documentos).
+    - `[Zenith] enviar <arquivo>`: Anexa e envia o arquivo do PC para o celular (até 25 MB).
+    - `[Zenith] bloquear`: Bloqueia o Windows remotamente.
+    - `[Zenith] <pergunta>`: Consulta a IA do PC e responde por e-mail em texto e HTML limpo.
+  - **Segurança Antifalsificação:** Só aceita comandos se o remetente do e-mail for o próprio e-mail configurado pelo usuário, rejeitando qualquer mensagem externa.
+  - **Nova aba "Ponte E-mail" nas Configurações:** Permite ao usuário configurar seu e-mail e senha de app de 16 letras com teste de conexão instantâneo.

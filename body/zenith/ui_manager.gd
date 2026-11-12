@@ -43,7 +43,8 @@ const ChavesPage := preload("res://zenith_chaves_page.gd")   # v1.1 — página 
 var chaves_page: RefCounted
 const SaudePage := preload("res://zenith_saude_page.gd")     # v1.2 — "Saúde do Zenith" (Configurações → Sobre)
 var saude_page: RefCounted
-var desempenho_page: RefCounted                               # v1.11 (port celular) — tela de Desempenho (ver _montar_desempenho)
+var desempenho_page: RefCounted
+var email_page: RefCounted                                    # v1.20 — Ponte por E-mail (Celular <-> PC)                               # v1.11 (port celular) — tela de Desempenho (ver _montar_desempenho)
 var layout_celular: RefCounted = null                         # v1.12 (port celular) — layout em pé (ver _aplicar_layout_celular)
 const Cartoes := preload("res://zenith_cartoes.gd")          # v1.3 — cartões de atividade no chat
 var cartoes: RefCounted
@@ -2353,9 +2354,13 @@ func _build_settings_overlay() -> Control:
 	tabs.add_child(_settings_tab_appearance())
 	tabs.add_child(_settings_tab_estudio())          # v1.1 — temas, cores e efeitos animados por área
 	tabs.add_child(_settings_tab_chaves())           # v1.1 — ÚNICA tela de chaves e de "Minhas IAs"
+	tabs.add_child(_settings_tab_email())            # v1.20 — Ponte por E-mail (Celular <-> PC)
 	tabs.tab_changed.connect(func(i):
-		if settings_tabs.get_tab_title(i) == "Chaves & IAs" and chaves_page:
-			chaves_page.pedir())
+		var t_nome = settings_tabs.get_tab_title(i)
+		if t_nome == "Chaves & IAs" and chaves_page:
+			chaves_page.pedir()
+		elif t_nome == "Ponte E-mail" and email_page:
+			email_page.pedir_dados())
 	tabs.add_child(_settings_tab_permissions())
 	tabs.add_child(_settings_tab_about())          # v1.0 — quem criou o Zenith
 	# O nome de um nó não aceita "/" (virava "Corpo _ VRM"); o título da aba é definido à parte.
@@ -3777,6 +3782,15 @@ func _settings_tab_appearance() -> ScrollContainer:
 	_labeled_field(v, "Escurecer o fundo (0 = nada, 1 = totalmente preto)", "chat_wallpaper_dim")
 	_hint(v, "Ajuda a manter o texto do chat legível em cima de fundos claros ou " +
 		"muito cheios de detalhe.")
+	return tab
+
+
+func _settings_tab_email() -> ScrollContainer:
+	var tab = _new_tab("Ponte E-mail")
+	var script = _script_opcional("res://zenith_email_page.gd")
+	if script:
+		email_page = script.new()
+		email_page.montar(self, brain, tab.get_meta("content"))
 	return tab
 
 

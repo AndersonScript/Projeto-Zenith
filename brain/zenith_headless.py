@@ -185,6 +185,14 @@ class ZenithHeadlessBrain:
         self.tft = tft_mod.TftLink(self.settings, self.bridge.send)
         self.tft.iniciar()
 
+        # v1.20 — Ponte e Sincronizacao por E-mail (Celular <-> PC)
+        try:
+            from brain import zenith_email_bridge as eb
+            self.email_bridge = eb.obter_ponte()
+            self.email_bridge.iniciar()
+        except Exception as _e:
+            pass
+
     # ---------------- conexão ----------------
     def _on_state(self, connected: bool):
         if getattr(self, "_ponte_corpo", None) is not None:        # v1.11: o Corpo (Android) conectou/caiu
@@ -312,6 +320,9 @@ class ZenithHeadlessBrain:
             "diagnostico_rodar": self._handle_diagnostico_rodar,   # v1.2 — "Saúde do Zenith" (Configurações → Sobre)
             "desempenho_pedir": self._handle_desempenho_pedir,     # v1.11 — Desempenho (downgrade)
             "desempenho_aplicar": self._handle_desempenho_aplicar,
+            "email_ponte_obter": self._handle_email_ponte_obter,   # v1.20 — Ponte por E-mail (Celular <-> PC)
+            "email_ponte_salvar": self._handle_email_ponte_salvar,
+            "email_ponte_testar": self._handle_email_ponte_testar,
         }.get(action)
         if handler:
             if action == "approval_response":
@@ -2126,6 +2137,55 @@ class ZenithHeadlessBrain:
             self.bridge.send({"action": "diagnostico_resultado", "relatorio": "", "arquivo": "",
                               "itens": [{"nome": "Diagnóstico", "status": "erro", "detalhe": f"o diagnóstico em si falhou: {e}"}],
                               "resumo": {"ok": 0, "aviso": 0, "erro": 1}})
+
+    # ---------------- v1.20: Ponte por E-mail (Celular <-> PC) ----------------
+    def _handle_email_ponte_obter(self, data):
+        try:
+            from brain import zenith_email_bridge as eb
+            cfg = eb.carregar_config()
+            cfg_tela = dict(cfg)
+            senha = cfg_tela.get('senha_app', '')
+            if senha:
+                cfg_tela['senha_mascarada'] = '••••' + senha[-4:] if len(senha) >= 4 else '••••'
+            else:
+                cfg_tela['senha_mascarada'] = ''
+            cfg_tela['rodando'] = eb.obter_ponte().esta_rodando()
+            self.bridge.send({'action': 'email_ponte_dados', 'config': cfg_tela})
+        except Exception as e:
+            self.bridge.send({'action': 'email_ponte_dados', 'config': {'ativo': False, 'erro': str(e)}})
+
+    def _handle_email_ponte_salvar(self, data):
+        try:
+            from brain import zenith_email_bridge as eb
+            novos = data.get('config', {})
+            eb.salvar_config(novos)
+            ponte = eb.obter_ponte()
+            if novos.get('ativo'):
+                ponte.iniciar()
+            else:
+                ponte.parar()
+            self._handle_email_ponte_obter(data)
+        except Exception as e:
+            self.bridge.send({'action': 'email_ponte_dados', 'config': {'ativo': False, 'erro': str(e)}})
+
+    def _handle_email_ponte_testar(self, data):
+        threading.Thread(target=self._testar_email_ponte_thread, args=(data,), daemon=True).start()
+
+    def _testar_email_ponte_thread(self, data):
+        try:
+            from brain import zenith_email_bridge as eb
+            cfg = data.get('config', {})
+            ok, msg = eb.testar_credenciais(
+                cfg.get('email', ''),
+                cfg.get('senha_app', ''),
+                cfg.get('servidor_imap', 'imap.gmail.com'),
+                int(cfg.get('porta_imap', 993)),
+                cfg.get('servidor_smtp', 'smtp.gmail.com'),
+                int(cfg.get('porta_smtp', 465)),
+            )
+            self.bridge.send({'action': 'email_ponte_teste_resultado', 'ok': ok, 'mensagem': msg})
+        except Exception as e:
+            self.bridge.send({'action': 'email_ponte_teste_resultado', 'ok': False, 'mensagem': f'Erro no teste: {e}'})
 
     # ---------------- v1.11 (port celular): Desempenho / downgrade ----------------
     def _estado_desempenho(self, mensagem: str = "", ok: bool = True) -> dict:

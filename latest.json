@@ -1,7 +1,7 @@
 {
   "versao": "1.0",
-  "data": "2026-11-11",
-  "notas": "Atualização Zenith: APK Android 1.19 com IA Gemini (fallback automático), Janela Flutuante 3D móvel transparente (PiP), enquadramento de Corpo Cheio, giro 3D com o dedo na tela e chat estilo Claude.",
+  "data": "2026-11-12",
+  "notas": "Atualização Zenith: APK Android 1.20 com Ponte por E-mail (Celular ↔ PC) sem banco de dados centralizado, comandos remotos (status, print, busca e envio de arquivos) e sincronização privada.",
   "pacote": {
     "arquivo": "Zenith_app_1.0.zip",
     "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith_app_1.0.zip",
@@ -32,11 +32,11 @@
     "tamanho": 12782131
   },
   "android": {
-    "versao": "1.19",
+    "versao": "1.20",
     "arquivo": "Zenith.apk",
     "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith.apk",
-    "sha256": "aa14a45acbf1e4b05beb82287c800a5ea7a4b0e41f5e631a5c1159d709b6e542",
-    "tamanho": 65430879,
-    "notas": "Correção IA Gemini (Google AI Studio fallback), Janela Flutuante 3D móvel transparente estilo PiP, modo Corpo Cheio, giro 3D por toque e chat estilo Claude."
+    "sha256": "75b8883e789dc5b5a82e0d8603f502e8decbeb2d3a8c639f8181be04dc014b8e",
+    "tamanho": 65439224,
+    "notas": "Ponte por E-mail (Celular ↔ PC) sem banco de dados, comandos remotos (status, print, busca e envio de arquivos) e sincronização privada."
   }
 }
