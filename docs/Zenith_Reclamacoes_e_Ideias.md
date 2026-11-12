@@ -276,3 +276,32 @@ Todas as pendências listadas anteriormente na Parte 5 / Parte 7 e as lacunas da
     - `[Zenith] <pergunta>`: Consulta a IA do PC e responde por e-mail em texto e HTML limpo.
   - **Segurança Antifalsificação:** Só aceita comandos se o remetente do e-mail for o próprio e-mail configurado pelo usuário, rejeitando qualquer mensagem externa.
   - **Nova aba "Ponte E-mail" nas Configurações:** Permite ao usuário configurar seu e-mail e senha de app de 16 letras com teste de conexão instantâneo.
+
+---
+
+# 📌 PARTE 14 — O Avatar não muda de rosto nem se movimenta no APK Android (v1.21)
+
+### 💬 O que o Criador (Anderson) relatou:
+> *"descobri uma coisa na versão APK ela não muda nem o rosto e nem se movimenta ok"*
+
+### 🔍 Diagnóstico Técnico Profundo:
+1. **Descompasso no sinal de Ação/Estado:**
+   * `brain_connector.gd` emitia `emit_signal("akira_receive_action", "state_speaking")` e `"state_idle"`.
+   * `akira_body.gd` verificava apenas `if an.begins_with("state:")` (com dois-pontos). Como vinha com underline, o sinal era descartado silenciosamente.
+   * O estado de vida permanecia eternamente em `IDLE`. Como o motor de fala e visemes de boca (`akira_vida.gd`) só atua quando `_life == SPEAKING`, os lábios da Akira nunca se mexiam e a gesticulação de braço ao falar nunca começava.
+2. **Câmera do Nó Raiz vs Modelo 3D (Cancelamento da Respiração):**
+   * A respiração vertical oscilava `position.y` de `Akira_Body` (o nó raiz).
+   * A câmera 3D é filha desse mesmo nó raiz. Consequentemente, a câmera subia e descia junto com a Akira na mesma proporção — o movimento relativo era zero, parecendo que a personagem estava "congelada" em estátua.
+3. **Micro-gestos bloqueados em modo suave:**
+   * Micro-movimentos naturais de ociosidade (inclinar a cabeça, dar um leve suspiro, ajeitar o ombro) estavam travados para rodar apenas se o usuário mudasse a configuração para "expressivo".
+4. **Filtro Estrito de Comandos de Movimento:**
+   * Usuário digitando no celular "faz um mortal", "pula", "dança", "careta" caía no verificador de chave de IA se não houvesse chave inserida, em vez de executar o movimento acrobático localmente.
+
+### 🛠️ O que foi feito e entregue na v1.21:
+* ✅ **Reconhecimento universal de estados:** `akira_body.gd:receive_action` agora aceita `state_speaking`, `state:speaking`, `speaking`, `state_thinking`, `state_idle`.
+* ✅ **Sincronização labial viva:** Quando a IA fala, a boca forma palavras com visemes reais (`aa`, `ih`, `ou`, `ee`, `oh`) sincronizados com o tempo do texto/voz.
+* ✅ **Respiração natural:** O bob de respiração agora é aplicado diretamente na posição do modelo `Akira` e a rotação do peito (`chest_id`) foi aumentada para 0.035 rad, tornando a respiração calma e perceptível.
+* ✅ **Micro-gestos na ociosidade:** A cada 10 a 20 segundos a Akira faz um movimento sutil (inclina a cabeça, move os ombros, ajeita a postura).
+* ✅ **Movimentos acrobáticos instantâneos sem chave:** Comandos como "mortal", "pula", "dança", "careta", "reverência", "acena", "sorri" são reconhecidos e executados na hora, 100% offline no celular.
+* ✅ **Câmera SubViewport 100% sintonizada:** A textura do card flutuante móvel agora copia FOV, posição e parâmetros da câmera principal a cada quadro.
+* ✅ **APK v1.21 gerado e publicado:** Arquivo `Zenith.apk` gerado, assinado e publicado no GitHub Releases e na pasta Downloads do criador.

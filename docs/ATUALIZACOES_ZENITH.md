@@ -2,14 +2,36 @@
 
 > **Projeto Zenith** — Assistente Pessoal com Avatar 3D VRM & Inteligência Artificial  
 > *Criador & Diretor do Projeto:* **Anderson**  
-> *Versão:* **1.20 (Android Mobile) / 1.0 (Windows PC)**  
+> *Versão:* **1.21 (Android Mobile) / 1.0 (Windows PC)**  
 > *Data:* **12/11/2026**  
 > *Repositório GitHub:* [github.com/AndersonScript/Projeto-Zenith](https://github.com/AndersonScript/Projeto-Zenith)  
 > *Site Oficial:* [projeto-zenith-five.vercel.app](https://projeto-zenith-five.vercel.app)
 
 ---
 
-## 📧 1. Nova Ponte por E-mail (Celular ↔ Computador) — 100% Privada e Sem Banco de Dados
+## 🎭 1. Correção Crítica do Avatar no APK Android (Expressões Faciais, Sincronização Labial & Movimentos Acrobáticos)
+
+Com base no relato do Anderson (*"descobri uma coisa na versão APK ela não muda nem o rosto e nem se movimenta"*), investigamos a fundo o ciclo de renderização e animação do avatar no APK e corrigimos 5 causas raízes:
+
+1. **Desacoplamento do Prefixo de Estado (`state_speaking` vs `state:speaking`):**
+   * O conector emitia `"state_speaking"` e `"state_idle"` com underline, enquanto o corpo 3D aguardava `"state:"` com dois-pontos. Isso impedia o avatar de transitar para o estado `SPEAKING` ou `THINKING`.
+   * **Correção:** O avatar agora reconhece todos os formatos (`state_speaking`, `state:speaking`, `speaking`, `state_thinking`, `state_idle`).
+2. **Sincronização Labial (Visemes) e Gesticulação ao Falar:**
+   * Com o estado `SPEAKING` ativo, o motor `akira_vida.gd` agora movimenta a boca continuamente (visemes `aa`, `ih`, `ou`, `ee`, `oh`) em tempo real enquanto fala por voz ou texto, move o braço gesticulando e acena a cabeça ritmicamente.
+3. **Expressões Faciais Vivas e Ricas em Blend Shapes:**
+   * Aumentada a força expressiva (`_emotion_strength = 0.75`), integrados os blend shapes VRoid (`Fcl_ALL_Joy`, `Fcl_ALL_Angry`, `Fcl_ALL_Sorrow`, `Fcl_ALL_Surprised`) e o conector agora seleciona expressões faciais vivas por padrão (sorriso alegre em cumprimentos, curiosidade em perguntas, calma em respostas longas).
+4. **Respiração Visível e Micro-Movimentos de Ociosidade:**
+   * A respiração anterior oscilava o nó raiz da cena, movendo a câmera junto e anulando o movimento relativo. Agora a respiração vertical (1.2 cm) e rotação peitoral (0.035 radianos) atuam diretamente sobre o modelo da Akira, tornando a respiração calma e visível.
+   * Ativados micro-gestos naturais mesmo no modo padrão `suave` (inclinar de cabeça, concordar sutil, ajeitar postura a cada 10-20 segundos).
+5. **Comandos Acrobáticos 100% Locais no Celular (Sem Chave):**
+   * Pedidos como "mortal", "mortal de costas", "mortal de frente", "pula", "dança", "careta", "gira", "reverência" ou "acena" são executados imediatamente em 3D, com acrobacia completa e resposta simpática da Zenith, funcionando 100% offline mesmo sem chave de API configurada.
+6. **Sincronização de Câmera e FOV no SubViewport Móvel:**
+   * A câmera secundária do card flutuante móvel agora copia a posição, FOV, planos near/far e proporção de aspecto da câmera principal quadro a quadro, mantendo o enquadramento perfeito durante giros e acrobacias.
+
+---
+
+## 📧 2. Nova Ponte por E-mail (Celular ↔ Computador) — 100% Privada e Sem Banco de Dados
+ de Dados
 
 Atendendo à visão do Anderson de manter o projeto **100% anônimo, descentralizado e sem custos de banco de dados na nuvem**, criamos a **Ponte por E-mail**:
 

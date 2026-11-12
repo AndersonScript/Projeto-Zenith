@@ -116,7 +116,7 @@ var _expr_w: Dictionary = {}        # peso atual de cada expressão (0..1)
 var _driven: Dictionary = {}        # chave "id:idx" -> [mesh, idx] já mexidos (pra zerar depois)
 var _emotion: String = "neutral"
 var _emotion_until: float = 0.0
-var _emotion_strength: float = 0.55         # v21: era 0.75 — "feliz" fechava os olhos demais
+var _emotion_strength: float = 0.75         # v1.21: expressivo e nítido
 var _t: float = 0.0
 
 # ---- piscar ----
@@ -490,13 +490,16 @@ func _update_gesture_timer():
 		elif (_t - _g_t0) > _g_dur:
 			_gesture = ""
 			_g_hold = false
-	# micro-gestos aleatórios (só no nível "expressivo", parada)
-	if _gesture == "" and nivel == "expressivo" and _life == IDLE and _t > _next_micro:
-		var pool = ["inclinar", "concordar", "ombros"]
-		play_gesture(pool[randi() % pool.size()], 0.6)
-		_next_micro = _t + randf_range(7.0, 16.0)
+	# micro-gestos aleatórios (em "expressivo" ou "suave", parada)
+	if _gesture == "" and nivel != "desligado" and _life == IDLE and _t > _next_micro:
+		var pool = ["inclinar", "concordar", "ombros", "espreguicar"]
+		var esc = 0.7 if nivel == "expressivo" else 0.45
+		play_gesture(pool[randi() % pool.size()], esc)
+		var t_min = 6.0 if nivel == "expressivo" else 10.0
+		var t_max = 14.0 if nivel == "expressivo" else 20.0
+		_next_micro = _t + randf_range(t_min, t_max)
 	elif _next_micro < _t:
-		_next_micro = _t + randf_range(7.0, 16.0)
+		_next_micro = _t + randf_range(8.0, 18.0)
 
 
 # ---------------------------------------------------------------- rosto
@@ -507,7 +510,7 @@ func _update_face(delta: float):
 		emo_target = "neutral"
 	var kf = 1.0 - exp(-delta * 7.0)
 	# v21: falando, a emoção diminui (senão olhos fechados + boca aberta ao mesmo tempo ficam estranhos)
-	var forca_emo = _emotion_strength * (0.7 if _life == SPEAKING else 1.0)
+	var forca_emo = _emotion_strength * (0.85 if _life == SPEAKING else 1.0)
 	for e in EMOTIONS:
 		var alvo = forca_emo if e == emo_target else 0.0
 		_expr_w[e] = lerpf(float(_expr_w[e]), alvo, kf)

@@ -361,31 +361,70 @@ func _processar_chat_standalone(text: String, anexos: Array = []) -> void:
 	
 	var t_lower = text.to_lower().strip_edges()
 	
-	# 1. Comandos de Movimento Acrobático (Mortal / Pulo / Dança / Giro / Reverência / Careta)
+	# 1. Comandos de Movimento Acrobático e Expressões (Mortal / Pulo / Dança / Giro / Reverência / Careta / Aceno / Sorriso)
 	var mov_acionado = ""
-	if "mortal" in t_lower or "backflip" in t_lower or "somersault" in t_lower or "cambalhota" in t_lower:
-		mov_acionado = "mortal_frente" if "frente" in t_lower else "mortal"
+	var fala_movimento = ""
+	var gesto_acionado = ""
+	var emo_acionada = ""
+	
+	if "mortal de frente" in t_lower or "mortal pra frente" in t_lower or "frontflip" in t_lower:
+		mov_acionado = "mortal_frente"
+		fala_movimento = "Olha o mortal de frente! 🤸‍♀️✨"
+	elif "mortal" in t_lower or "backflip" in t_lower or "somersault" in t_lower or "cambalhota" in t_lower:
+		mov_acionado = "mortal"
+		fala_movimento = "Olha o mortal de costas! 🤸‍♀️✨"
 	elif "pulo alto" in t_lower or "pula alto" in t_lower or "salto alto" in t_lower:
 		mov_acionado = "pulo_alto"
+		fala_movimento = "Saltando bem alto! 🚀"
 	elif "pulo duplo" in t_lower or "dois pulos" in t_lower:
 		mov_acionado = "pulo_duplo"
+		fala_movimento = "Dois pulos seguidos! 🐰"
 	elif "estrela" in t_lower or "estrelinha" in t_lower:
 		mov_acionado = "estrela"
+		fala_movimento = "Estrelinha acrobática completa! ⭐"
 	elif "dança" in t_lower or "danca" in t_lower or "dance" in t_lower or "dançar" in t_lower or "dancar" in t_lower:
 		mov_acionado = "dancar"
-	elif "gira" in t_lower or "giro" in t_lower or "da uma volta" in t_lower or "dá uma volta" in t_lower:
+		fala_movimento = "Dançando com todo ritmo pra você! 💃🎶"
+	elif "gira" in t_lower or "giro" in t_lower or "da uma volta" in t_lower or "dá uma volta" in t_lower or "rodopiar" in t_lower:
 		mov_acionado = "girar"
+		fala_movimento = "Girando 360 graus! 🌀"
 	elif "reverencia" in t_lower or "reverência" in t_lower or "curva" in t_lower:
 		mov_acionado = "reverencia"
-	elif "careta" in t_lower:
+		fala_movimento = "Uma reverência respeitosa para o meu criador! 🙇‍♀️"
+	elif "careta" in t_lower or "caretas" in t_lower:
 		mov_acionado = "careta"
-	elif "acena" in t_lower or "aceno" in t_lower or "tchau" in t_lower:
+		fala_movimento = "Fiz uma careta engraçada pra você! 😜"
+	elif "acena" in t_lower or "aceno" in t_lower or "tchau" in t_lower or "acenar" in t_lower:
 		mov_acionado = "aceno_grande"
-	elif "pulo" in t_lower or "pula" in t_lower or "pule" in t_lower or "salta" in t_lower:
+		fala_movimento = "Olá Anderson! Acenei pra você com muito carinho! 👋✨"
+	elif "pulo" in t_lower or "pula" in t_lower or "pule" in t_lower or "salta" in t_lower or "salte" in t_lower:
 		mov_acionado = "pulo"
-	
+		fala_movimento = "Pulei! Um salto bem leve! ✨"
+	elif "sorri" in t_lower or "sorria" in t_lower or "sorriso" in t_lower or "fica feliz" in t_lower:
+		emo_acionada = "happy"
+		fala_movimento = "Sempre sorrindo pra você com muita alegria! 😊✨"
+	elif "brava" in t_lower or "raiva" in t_lower or "fica brava" in t_lower:
+		emo_acionada = "angry"
+		fala_movimento = "Humph! Tô fazendo cara de brava agora! 😤"
+	elif "triste" in t_lower or "chora" in t_lower or "fica triste" in t_lower:
+		emo_acionada = "sad"
+		fala_movimento = "Poxa... fiquei tristinha agora... 🥺"
+	elif "surpresa" in t_lower or "espanto" in t_lower:
+		emo_acionada = "surprised"
+		fala_movimento = "Uau! Fiquei muito surpresa! 😲"
+	elif t_lower in ["oi", "ola", "olá", "e aí", "e ai", "bom dia", "boa tarde", "boa noite"]:
+		gesto_acionado = "acenar"
+		emo_acionada = "happy"
+		fala_movimento = "Olá Anderson! Que alegria ver você! 👋✨ Estou viva e pronta aqui no celular!"
+
 	if mov_acionado != "":
 		emit_signal("movimento", {"action": "movement_play", "nome": mov_acionado, "escala": 1.0})
+		emit_signal("akira_receive_action", mov_acionado)
+	if gesto_acionado != "":
+		emit_signal("akira_receive_action", "gesture:" + gesto_acionado)
+	if emo_acionada != "":
+		emit_signal("akira_changes_expression", emo_acionada)
+		emit_signal("akira_receive_action", "emotion:" + emo_acionada)
 	
 	# 2. Comandos para abrir aplicativos e navegador
 	if t_lower.begins_with("abre o youtube") or t_lower.begins_with("abrir youtube"):
@@ -431,7 +470,14 @@ func _processar_chat_standalone(text: String, anexos: Array = []) -> void:
 				_provedor_atual = p
 				break
 	
+	if fala_movimento != "" and (chave_escolhida.is_empty() or t_lower.length() < 35):
+		_entregar_resposta_ia(fala_movimento)
+		return
+
 	if chave_escolhida.is_empty():
+		if t_lower in ["oi", "ola", "olá", "e aí", "e ai", "bom dia", "boa tarde", "boa noite"]:
+			_entregar_resposta_ia("Olá Anderson! Que alegria ver você! 👋✨ Estou viva e pronta aqui no seu celular! Pode me pedir pra pular, dançar, dar um mortal, fazer careta ou conversar!")
+			return
 		call_deferred("_ao_resposta_sem_chave")
 		return
 	
@@ -693,15 +739,22 @@ func _entregar_resposta_ia(resposta_bruta: String) -> void:
 	emit_signal("akira_chat_message", "ai", resposta)
 	
 	var r_lower = resposta.to_lower()
-	if "sorri" in r_lower or "feliz" in r_lower or "ótimo" in r_lower or "legal" in r_lower or "obrigad" in r_lower:
-		emit_signal("akira_changes_expression", "happy")
-	elif "pens" in r_lower or "interessante" in r_lower or "hmmm" in r_lower:
-		emit_signal("akira_changes_expression", "surprised")
-	elif "triste" in r_lower or "desculp" in r_lower or "infelizmente" in r_lower:
-		emit_signal("akira_changes_expression", "sad")
+	var emo_escolhida = "happy"
+	if "triste" in r_lower or "desculp" in r_lower or "infelizmente" in r_lower or "erro" in r_lower or "perdao" in r_lower:
+		emo_escolhida = "sad"
+	elif "brava" in r_lower or "raiva" in r_lower or "droga" in r_lower or "humph" in r_lower:
+		emo_escolhida = "angry"
+	elif "pens" in r_lower or "interessante" in r_lower or "hmmm" in r_lower or "?" in resposta or "uau" in r_lower or "nossa" in r_lower:
+		emo_escolhida = "surprised"
+	elif "calma" in r_lower or "relax" in r_lower or "tranquil" in r_lower or "sono" in r_lower:
+		emo_escolhida = "relaxed"
+	elif "neutr" in r_lower or "serio" in r_lower:
+		emo_escolhida = "neutral"
 	else:
-		emit_signal("akira_changes_expression", "neutral")
-	
+		emo_escolhida = "happy"
+
+	emit_signal("akira_changes_expression", emo_escolhida)
+	emit_signal("akira_receive_action", "emotion:" + emo_escolhida)
 	emit_signal("akira_receive_action", "state_speaking")
 	emit_signal("akira_speaks", resposta)
 	emit_signal("atividade", "falando", "🗣️", "Zenith falando...", true)

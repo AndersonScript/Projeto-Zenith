@@ -358,8 +358,15 @@ func _ready():
 
 func _process(delta):
 	time += delta
-	if _op_cam != null and _op_main_cam != null and is_instance_valid(_op_main_cam):
-		_op_cam.global_transform = _op_main_cam.global_transform
+	if _op_cam != null:
+		if _op_main_cam == null or not is_instance_valid(_op_main_cam):
+			_op_main_cam = get_viewport().get_camera_3d() if get_viewport() else null
+		if _op_main_cam != null and is_instance_valid(_op_main_cam):
+			_op_cam.global_transform = _op_main_cam.global_transform
+			_op_cam.fov = _op_main_cam.fov
+			_op_cam.near = _op_main_cam.near
+			_op_cam.far = _op_main_cam.far
+			_op_cam.keep_aspect = _op_main_cam.keep_aspect
 
 	# PAUSADO nesta rodada — reforço de pose de braço desligado junto com
 	# o resto do sistema de travamento (ver nota no topo do arquivo).
@@ -372,18 +379,22 @@ func _process(delta):
 	# RESPIRAÇÃO — mais rápida/rasa "pensando", mais calma parada
 	var state_breath_mult = 1.6 if life_state == LifeState.THINKING else (1.15 if life_state == LifeState.SPEAKING else 1.0)
 	position.y = base_y + sin(time * breath_speed * state_breath_mult) * breath_amount
+	var av_respiro = get_node_or_null("Akira")
+	if av_respiro != null and _vrm_anchor_ready and not (_mov != null and _mov.ativo()):
+		var bob = sin(time * breath_speed * state_breath_mult) * 0.012
+		av_respiro.position.y = _vrm_manual_offset.y + bob
 	if chest_id != -1 and skeleton:
 		var rest_pose = skeleton.get_bone_rest(chest_id).basis.get_rotation_quaternion()
-		var breath_chest = Quaternion(Vector3(1, 0, 0), sin(time * breath_speed * state_breath_mult) * 0.01)
+		var breath_chest = Quaternion(Vector3(1, 0, 0), sin(time * breath_speed * state_breath_mult) * 0.035)
 		skeleton.set_bone_pose_rotation(chest_id, rest_pose * breath_chest)
 
 	# BALANÇO DE PESO — troca de perna de apoio bem lenta, quase
 	# imperceptível, mas é o detalhe que impede a pose de parecer "travada
 	# em pé feito estátua". Praticamente pausa durante THINKING (foco).
 	if hips_id != -1 and skeleton:
-		var sway_amount = 0.0 if life_state == LifeState.THINKING else 0.025
+		var sway_amount = 0.0 if life_state == LifeState.THINKING else 0.035
 		var hips_rest = skeleton.get_bone_rest(hips_id).basis.get_rotation_quaternion()
-		var sway = Quaternion(Vector3(0, 0, 1), sin(time * 0.35) * sway_amount)
+		var sway = Quaternion(Vector3(0, 0, 1), sin(time * 0.45) * sway_amount)
 		skeleton.set_bone_pose_rotation(hips_id, hips_rest * sway)
 
 	# CABEÇA — olhar errante na maior parte do tempo; na THINKING, olha
@@ -489,16 +500,21 @@ func set_expression(expression_name: String):
 		"happy", "feliz", "joy":
 			shape_index = mesh_instance.find_blend_shape_by_name("Joy")
 			if shape_index == -1: shape_index = mesh_instance.find_blend_shape_by_name("Happy")
+			if shape_index == -1: shape_index = mesh_instance.find_blend_shape_by_name("Fcl_ALL_Joy")
 		"angry", "brava", "anger":
 			shape_index = mesh_instance.find_blend_shape_by_name("Angry")
 			if shape_index == -1: shape_index = mesh_instance.find_blend_shape_by_name("Anger")
+			if shape_index == -1: shape_index = mesh_instance.find_blend_shape_by_name("Fcl_ALL_Angry")
 		"sad", "triste", "sorrow":
 			shape_index = mesh_instance.find_blend_shape_by_name("Sorrow")
 			if shape_index == -1: shape_index = mesh_instance.find_blend_shape_by_name("Sad")
+			if shape_index == -1: shape_index = mesh_instance.find_blend_shape_by_name("Fcl_ALL_Sorrow")
 		"surprised", "surpresa":
 			shape_index = mesh_instance.find_blend_shape_by_name("Surprised")
+			if shape_index == -1: shape_index = mesh_instance.find_blend_shape_by_name("Fcl_ALL_Surprised")
 		"neutral", "neutro":
 			shape_index = mesh_instance.find_blend_shape_by_name("Neutral")
+			if shape_index == -1: shape_index = mesh_instance.find_blend_shape_by_name("Fcl_ALL_Neutral")
 
 	if shape_index == _current_expression_shape:
 		return
@@ -591,12 +607,15 @@ func obter_textura_avatar() -> Texture2D:
 		_op_cam = Camera3D.new()
 		_op_cam.name = "AvatarSubCam"
 		_op_sub.add_child(_op_cam)
+		_op_cam.current = true
+		_op_cam.cull_mask = 1048575
 		if main_cam != null:
 			_op_main_cam = main_cam
 			_op_cam.projection = main_cam.projection
 			_op_cam.fov = main_cam.fov
 			_op_cam.near = main_cam.near
 			_op_cam.far = main_cam.far
+			_op_cam.keep_aspect = main_cam.keep_aspect
 			_op_cam.global_transform = main_cam.global_transform
 	return _op_sub.get_texture()
 
@@ -675,28 +694,95 @@ func _opacidade_desligar():
 		_op_sub.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_op_ativo = false
 
+func _obter_mov():
+	if _mov == null:
+		var script = load(MOV_PATH)
+		if script != null and script.can_instantiate():
+			_mov = script.new()
+	return _mov
+
 func receive_action(action_name: String):
 	var an = action_name.to_lower().strip_edges()
-	# v20: "gesture:acenar", "emotion:happy" e os nomes de gesto soltos vão pro motor de vida
+	
+	# 1. Estados de vida ("state:speaking", "state_speaking", "speaking", etc.)
+	var st = ""
+	if an.begins_with("state:"):
+		st = an.substr(6)
+	elif an.begins_with("state_"):
+		st = an.substr(6)
+	elif an in ["speaking", "falando", "thinking", "pensando", "idle", "ocioso", "greeting"]:
+		st = an
+	if st != "":
+		set_life_state(st)
+		return
+
+	# 2. Gestos específicos ("gesture:acenar", "gesture_acenar", etc.)
+	var gst = ""
 	if an.begins_with("gesture:"):
-		if an == "gesture:pulinho" and _mov != null and _mov.existe("pulo"):
-			_mov.tocar("pulo", 1.0)         # v1.6: o "pulinho" antigo era uma vibração de 1 cm; agora é um pulo de verdade
-			return
-		vida_play_gesture(an.substr(8))
+		gst = an.substr(8)
+	elif an.begins_with("gesture_"):
+		gst = an.substr(8)
+	if gst != "":
+		if gst == "pulinho":
+			var m_pulo = _obter_mov()
+			if m_pulo != null and m_pulo.existe("pulo"):
+				m_pulo.tocar("pulo", 1.0)
+				return
+		vida_play_gesture(gst)
 		return
+
+	# 3. Emoções e Expressões ("emotion:happy", "expression:happy", "happy", etc.)
+	var emo = ""
 	if an.begins_with("emotion:"):
-		if vida != null:
-			vida.set_emotion(an.substr(8))
+		emo = an.substr(8)
+	elif an.begins_with("expression:"):
+		emo = an.substr(11)
+	elif an.begins_with("emotion_"):
+		emo = an.substr(8)
+	elif an in ["happy", "feliz", "sad", "triste", "surprised", "surpresa", "angry", "brava", "relaxed", "calma", "neutral", "neutro"]:
+		emo = an
+	if emo != "":
+		set_expression(emo)
 		return
+
+	# 4. Movimentos acrobáticos / corpo inteiro
+	var mov = _obter_mov()
+	var clip_nome = ""
 	match an:
-		"wave", "oi", "aceno":
+		"mortal", "cambalhota", "salto", "mortal_tras", "backflip":
+			clip_nome = "mortal"
+		"mortal_frente", "frontflip":
+			clip_nome = "mortal_frente"
+		"pulo", "pula", "salta":
+			clip_nome = "pulo"
+		"pulo_alto", "salto_alto":
+			clip_nome = "pulo_alto"
+		"pulo_duplo":
+			clip_nome = "pulo_duplo"
+		"estrela", "estrelinha":
+			clip_nome = "estrela"
+		"dancar", "danca", "dança", "dance":
+			clip_nome = "dancar"
+		"girar", "giro":
+			clip_nome = "girar"
+		"careta":
+			clip_nome = "careta"
+		"reverencia", "reverência":
+			clip_nome = "reverencia"
+		"aceno_grande":
+			clip_nome = "aceno_grande"
+		"wave", "oi", "aceno", "acenar":
 			if not vida_play_gesture("acenar"):
 				dar_oi()
-		_:
-			if an.begins_with("state:"):
-				set_life_state(action_name.substr(6))
-			elif vida != null and vida.gesture_names().has(an):
-				vida.play_gesture(an)
+			return
+
+	if clip_nome != "" and mov != null and mov.existe(clip_nome):
+		mov.tocar(clip_nome, 1.0)
+		return
+
+	# 5. Gestos avulsos do motor de vida
+	if vida != null and vida.gesture_names().has(an):
+		vida.play_gesture(an)
 
 func _force_arms_down():
 	if not skeleton: return
