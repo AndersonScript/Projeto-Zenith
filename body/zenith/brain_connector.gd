@@ -465,6 +465,11 @@ func _processar_chat_standalone(text: String, anexos: Array = []) -> void:
 	emit_signal("atividade", "pensando", "💭", "Pensando na resposta...", true)
 	_despachar_ia(prov_escolhido, chave_escolhida, text)
 
+var _modelos_gemini: Array = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-1.5-pro"]
+var _gemini_modelo_idx: int = 0
+var _gemini_chave_atual: String = ""
+var _gemini_prompt_atual: String = ""
+var _gemini_tentando: bool = false
 var _id_cartao_busca: String = ""
 var _detalhe_cartao_busca: String = ""
 
@@ -509,14 +514,22 @@ func _despachar_ia(prov: String, chave: String, prompt_final: String) -> void:
 			_enviar_openai_compativel("https://api.groq.com/openai/v1/chat/completions", chave, "llama-3.3-70b-versatile", prompt_final)
 		"openai":
 			_enviar_openai_compativel("https://api.openai.com/v1/chat/completions", chave, "gpt-4o-mini", prompt_final)
-		"claude", "llama":
-			var mod = "anthropic/claude-3.5-haiku" if prov == "claude" else "meta-llama/llama-3.3-70b-instruct:free"
-			_enviar_openai_compativel("https://openrouter.ai/api/v1/chat/completions", chave, mod, prompt_final)
+		"claude":
+			if chave.strip_edges().begins_with("sk-ant-"):
+				_enviar_claude_direto(chave, prompt_final)
+			else:
+				_enviar_openai_compativel("https://openrouter.ai/api/v1/chat/completions", chave, "anthropic/claude-3.5-haiku", prompt_final)
+		"llama":
+			_enviar_openai_compativel("https://openrouter.ai/api/v1/chat/completions", chave, "meta-llama/llama-3.3-70b-instruct:free", prompt_final)
 		_:
 			_enviar_gemini(chave, prompt_final)
 
 func _enviar_gemini(chave: String, prompt_atual: String) -> void:
-	var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + chave.strip_edges()
+	_gemini_chave_atual = chave
+	_gemini_prompt_atual = prompt_atual
+	_gemini_tentando = true
+	var mod = _modelos_gemini[_gemini_modelo_idx]
+	var url = "https://generativelanguage.googleapis.com/v1beta/models/" + mod + ":generateContent?key=" + chave.strip_edges()
 	var headers = PackedStringArray(["Content-Type: application/json"])
 	
 	var contents = []
@@ -546,6 +559,31 @@ func _enviar_gemini(chave: String, prompt_atual: String) -> void:
 	if err != OK:
 		_ai_respondendo = false
 		_entregar_resposta_ia("⚠ Erro ao iniciar conexão com o Gemini (código %d). Verifique o Wi-Fi ou dados móveis." % err)
+
+func _enviar_claude_direto(chave: String, prompt_atual: String) -> void:
+	_gemini_tentando = false
+	var url = "https://api.anthropic.com/v1/messages"
+	var headers = PackedStringArray([
+		"Content-Type: application/json",
+		"x-api-key: " + chave.strip_edges(),
+		"anthropic-version: 2023-06-01"
+	])
+	var msgs = []
+	var inicio = maxi(0, _historico_mobile.size() - 7)
+	for i in range(inicio, _historico_mobile.size()):
+		var m = _historico_mobile[i]
+		var papel = "user" if m.get("sender", "") == "user" else "assistant"
+		msgs.append({"role": papel, "content": str(m.get("text", ""))})
+	var body = {
+		"model": "claude-3-5-haiku-20241022",
+		"max_tokens": 600,
+		"system": "Você é a Zenith, assistente pessoal com avatar 3D VRM criada pelo Anderson. Responda em português brasileiro de forma amigável, prestativa e concisa. Você controla seu corpo 3D sem limitações! Para executar um movimento pronto, inclua na resposta: <corpo>movimento:NOME</corpo> (disponíveis: pulo, pulo_alto, pulo_duplo, mortal, mortal_frente, estrela, dancar, girar, careta, reverencia, aceno_grande). Para criar qualquer movimento novo, inclua: <criar_movimento>...</criar_movimento><corpo>movimento:NOME</corpo>.",
+		"messages": msgs
+	}
+	var err = _http_ai.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_ai_respondendo = false
+		_entregar_resposta_ia("⚠ Erro ao conectar com o Claude da Anthropic (código %d)." % err)
 
 func _enviar_openai_compativel(url: String, chave: String, modelo: String, prompt_atual: String) -> void:
 	var headers = PackedStringArray([
@@ -585,17 +623,33 @@ func _ao_resposta_http_ai(result: int, response_code: int, headers: PackedString
 	var parsed = JSON.parse_string(texto_resposta)
 	
 	if response_code < 200 or response_code >= 300:
-		var msg_erro = "⚠ Erro na IA (código %d)." % response_code
+		var raw_msg = ""
 		if parsed is Dictionary and parsed.has("error"):
 			var err_obj = parsed["error"]
 			if err_obj is Dictionary and err_obj.has("message"):
-				msg_erro = "⚠ Erro: " + str(err_obj["message"])
+				raw_msg = str(err_obj["message"])
+		
+		# Fallback automático de modelos do Gemini caso o modelo não exista
+		if _gemini_tentando and (response_code == 404 or "not found" in raw_msg.to_lower() or "is not supported" in raw_msg.to_lower()):
+			if _gemini_modelo_idx + 1 < _modelos_gemini.size():
+				_gemini_modelo_idx += 1
+				var prox_mod = _modelos_gemini[_gemini_modelo_idx]
+				print("[Zenith/Gemini] Modelo anterior não encontrado. Tentando modelo fallback: ", prox_mod)
+				_enviar_gemini(_gemini_chave_atual, _gemini_prompt_atual)
+				return
+		_gemini_tentando = false
+		
+		var msg_erro = "⚠ Erro na IA (código %d)." % response_code
+		if not raw_msg.is_empty():
+			msg_erro = "⚠ " + raw_msg
 		if response_code == 400 or response_code == 401 or response_code == 403:
 			msg_erro = "❌ A chave de IA informada foi recusada pelo provedor (código %d). Confira a chave em ⚙ > Chaves de IA." % response_code
 		elif response_code == 429:
 			msg_erro = "⏳ O provedor atingiu o limite de requisições por minuto. Aguarde um instante e tente novamente."
 		_entregar_resposta_ia(msg_erro)
 		return
+	
+	_gemini_tentando = false
 	
 	var resposta_final = ""
 	if parsed is Dictionary:
@@ -611,6 +665,12 @@ func _ao_resposta_http_ai(result: int, response_code: int, headers: PackedString
 			if chs.size() > 0:
 				var msg = chs[0].get("message", {})
 				resposta_final = str(msg.get("content", "")).strip_edges()
+		elif parsed.has("content"): # Anthropic Claude oficial
+			var cont = parsed.get("content", [])
+			if cont is Array and cont.size() > 0:
+				for bloco in cont:
+					if bloco is Dictionary and bloco.get("type", "") == "text":
+						resposta_final += str(bloco.get("text", ""))
 	
 	if resposta_final.is_empty():
 		resposta_final = "Recebi a resposta, mas o texto veio em branco."

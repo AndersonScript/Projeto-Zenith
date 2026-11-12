@@ -231,3 +231,30 @@ Todas as pendências listadas anteriormente na Parte 5 / Parte 7 e as lacunas da
    - No Celular Standalone (`body/zenith/brain_connector.gd`), `/imagem` e `<gerar_imagem>` também geram imagens gratuitamente via Pollinations direto no aparelho.
 6. **Diagnóstico Completo na Aba Sobre (Backlog #3 e #4):**
    - `brain/zenith_diag.py` agora exibe também os caminhos de instalação (`instalacao.json`) e o log de instalação/execução (`python_instalacao.log` / `zenith_log.txt`) diretamente em **Configurações → Sobre (Saúde do Zenith)**.
+
+---
+
+## PARTE 12 — Atualizações v1.19 e Respostas às Ideias (11/11/2026)
+
+### R14 — “Não tá funcionando a parte da IA até colocando a API” ✅
+- **Sintoma:** O usuário inseriu a chave da API do Google AI Studio no Zenith Celular, mas ao enviar qualquer mensagem recebia o erro: Erro: models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.
+- **Causa:** O Google AI Studio descontinuou o identificador fixo gemini-1.5-flash na versão 1beta para chaves geradas recentemente, priorizando a família Gemini 2.x e aliases com -latest.
+- **Feito em `body/zenith/brain_connector.gd`:**
+  - Lista de modelos atualizada para a esteira prioritária moderna: `gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-flash-latest`, `gemini-2.5-flash-lite`, `gemini-2.0-flash-lite`, `gemini-1.5-pro`.
+  - Mecanismo de **Fallback Automático e Silencioso**: Caso a chamada receba código HTTP de erro (404 / 400 not found), o app avança instantaneamente e de forma transparente para o próximo modelo da fila sem travar a conversa e sem exibir erro técnico para o usuário.
+  - Suporte direto a chaves oficiais da Anthropic Claude (`sk-ant-...`) via endpoint `https://api.anthropic.com/v1/messages` com modelo `claude-3-5-haiku-20241022`.
+
+### R15 — “Não achei legal essa parte da VRM, faz igual o computador: uma janela transparente que se move, opção de corpo cheio, que dê pra virar de lado e mais igual ao design das outras IAs” ✅
+- **Sintoma:** O avatar ficava confinado a uma caixa escura no topo cortando o chat, sem possibilidade de arrastar pela tela nem de rotacionar em 3D livremente pelo toque.
+- **Feito em `body/zenith/akira_body.gd` e `body/zenith/zenith_layout_celular.gd`:**
+  - **Fundo 100% Transparente:** Adicionado `obter_textura_avatar()` com `SubViewport` configurado em `transparent_bg = true`. Zero caixa preta! O avatar é exibido diretamente sobre a interface com transparência alfa real.
+  - **Janela Móvel Flutuante (PiP):** No modo `📱 Flutuante`, o avatar fica em um cartão arredondado com efeito de vidro que pode ser **arrastado com o dedo para qualquer lugar da tela** pelo cabeçalho `⋮⋮ Zenith 3D`. Conta com botão de recolher `—` (bolha minimalista) e `↺` (resetar posição).
+  - **4 Modos de Layout com 1 Toque:** `📱 Flutuante` (Chat tela cheia estilo Claude + avatar móvel flutuando), `🧍 Corpo Cheio` (enquadramento completo da cabeça aos pés para ver mortais e acrobacias completas enquanto conversa), `💬 Só Chat` (chat minimalista tela cheia com avatar recolhido) e `🔲 No Topo` (visor superior clássico).
+  - **Virar de Lado em 3D:** Implementado detector de toque horizontal (`_ao_gui_input_giro`) no avatar 3D. Basta arrastar o dedo para girar a Akira em 360° no eixo Y em tempo real. Dois toques rápidos restauram a visão frontal.
+  - **Barra de Atividades Otimizada:** Substituído o banner volumoso de "Parar" por uma linha de status fina (26px) que se recolhe a 0px quando ociosa.
+
+### Dúvida — “Ela consegue usar a minha conta do Claude do meu browser, tipo pegar as APIs das outras IAs?” 💡
+- **Explicação Técnica:**
+  - No celular (Android), cada aplicativo roda dentro de uma **Sandbox (caixa de areia de segurança)** imposta pelo sistema operacional. Nenhum aplicativo tem permissão de bisbilhotar ou extrair cookies, sessões ou dados de login de outros aplicativos como o Google Chrome.
+  - Além de inseguro e sujeito a bloqueios de conta pela Cloudflare/Google, **não é necessário**: a chave de API gratuita do Google AI Studio (`AIzaSy...`) é **oficial, 100% gratuita, não pede cartão de crédito e não expira**.
+  - Com a correção de modelos aplicada na v1.19, a chave do Google AI Studio funciona perfeitamente, com velocidade máxima e respostas completas.

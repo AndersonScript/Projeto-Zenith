@@ -31,14 +31,23 @@ var fracao_avatar: float = 0.35    # proporção da tela dedicada ao avatar (0.2
 var faixa_avatar := 0              # altura (px) da faixa do avatar, no alto
 var gaveta: Control = null
 var _escurecer: ColorRect = null
-var modo_avatar: String = "busto"    # "busto" (foco no rosto) | "medio" (cintura pra cima) | "corpo_todo" (cabeça aos pés)
-var maximizado: bool = false         # true se o avatar está maximizado de corpo todo
+var modo_layout: String = "flutuante" # "flutuante" (janela móvel) | "corpo_todo" (corpo cheio 3D) | "chat" (100% chat) | "topo" (faixa)
+var modo_avatar: String = "busto"    # mantido para compatibilidade
+var maximizado: bool = false         # true se o avatar está maximizado
 var _btn_modo_ref: Button = null
 var _btn_max_ref: Button = null
-var _btn_diminuir_ref: Button = null
-var _btn_aumentar_ref: Button = null
 var _cam_pos_base: Vector3 = Vector3.ZERO
 var _menu_btn: Button = null
+
+# Janela Flutuante Móvel (PiP) e Giro 3D
+var _card_movel: PanelContainer = null
+var _textura_avatar: TextureRect = null
+var _bolha_avatar: Button = null
+var _arraste_card: bool = false
+var _pos_toque_card: Vector2 = Vector2.ZERO
+var _arraste_giro: bool = false
+var _pos_toque_giro: Vector2 = Vector2.ZERO
+var _pos_card_flutuante: Vector2 = Vector2(-1, -1)
 
 func ativo() -> bool:
 	if OS.get_name() == "Android":
@@ -94,6 +103,8 @@ func aplicar(janela) -> void:
 	_posicionar_janela()
 	_esconder_o_que_e_de_pc()
 	_montar_gaveta()
+	_montar_card_flutuante.call_deferred()
+	_configurar_toque_3d.call_deferred()
 	_enquadrar_avatar.call_deferred()
 	_iniciar_teclado()
 	_ligar_voltar()
@@ -126,61 +137,49 @@ func _ao_tamanho_mudou() -> void:
 	_posicionar_janela()
 	_enquadrar_avatar()
 
-func diminuir_janela_avatar() -> void:
-	if fracao_avatar >= 0.55:
-		fracao_avatar = 0.45
-	elif fracao_avatar >= 0.40:
-		fracao_avatar = 0.32
-	elif fracao_avatar >= 0.28:
-		fracao_avatar = 0.22
-	maximizado = false
-	_posicionar_janela()
-	_enquadrar_avatar()
-
-func aumentar_janela_avatar() -> void:
-	if fracao_avatar <= 0.25:
-		fracao_avatar = 0.32
-	elif fracao_avatar <= 0.38:
-		fracao_avatar = 0.48
-	elif fracao_avatar <= 0.52:
-		fracao_avatar = 0.65
-	maximizado = false
-	_posicionar_janela()
-	_enquadrar_avatar()
-
-func alternar_modo_avatar() -> void:
-	match modo_avatar:
-		"busto":
-			modo_avatar = "medio"
-			fracao_avatar = 0.45
-		"medio":
-			modo_avatar = "corpo_todo"
-			fracao_avatar = 0.62
+func alternar_modo_layout() -> void:
+	match modo_layout:
+		"flutuante":
+			modo_layout = "corpo_todo"
 		"corpo_todo":
-			modo_avatar = "busto"
-			fracao_avatar = 0.32
-	maximizado = false
+			modo_layout = "chat"
+		"chat":
+			modo_layout = "topo"
+		"topo":
+			modo_layout = "flutuante"
+		_:
+			modo_layout = "flutuante"
 	_atualizar_botoes_modo()
 	_posicionar_janela()
 	_enquadrar_avatar()
 
+func alternar_modo_avatar() -> void:
+	alternar_modo_layout()
+
 func maximizar_avatar() -> void:
-	maximizado = not maximizado
-	if maximizado:
-		modo_avatar = "corpo_todo"
+	if modo_layout == "corpo_todo":
+		modo_layout = "flutuante"
+	else:
+		modo_layout = "corpo_todo"
 	_atualizar_botoes_modo()
 	_posicionar_janela()
 	_enquadrar_avatar()
 
 func _atualizar_botoes_modo() -> void:
 	if _btn_modo_ref != null and is_instance_valid(_btn_modo_ref):
-		match modo_avatar:
-			"busto": _btn_modo_ref.text = "👤 Busto"
-			"medio": _btn_modo_ref.text = "🔲 Médio"
-			"corpo_todo": _btn_modo_ref.text = "🧍 Todo"
-	if _btn_max_ref != null and is_instance_valid(_btn_max_ref):
-		_btn_max_ref.text = "🗗" if maximizado else "⛶"
-		_btn_max_ref.tooltip_text = "Restaurar layout" if maximizado else "Maximizar Avatar (corpo todo)"
+		match modo_layout:
+			"flutuante":
+				_btn_modo_ref.text = "📱 Flutuante"
+				_btn_modo_ref.tooltip_text = "Modo: Janela Flutuante Móvel (mova com o dedo). Toque para alternar."
+			"corpo_todo":
+				_btn_modo_ref.text = "🧍 Corpo Cheio"
+				_btn_modo_ref.tooltip_text = "Modo: Corpo Cheio 3D (dos pés à cabeça). Toque para alternar."
+			"chat":
+				_btn_modo_ref.text = "💬 Só Chat"
+				_btn_modo_ref.tooltip_text = "Modo: 100% Chat (estilo Claude / ChatGPT). Toque para alternar."
+			"topo":
+				_btn_modo_ref.text = "🔲 No Topo"
+				_btn_modo_ref.tooltip_text = "Modo: Fixado no Topo. Toque para alternar."
 
 func _posicionar_janela() -> void:
 	if ui == null or not is_instance_valid(ui):
@@ -192,27 +191,44 @@ func _posicionar_janela() -> void:
 	ui.min_size = Vector2i(180, 180)
 	var teclado: int = maxi(0, _teclado_px)
 	
-	if maximizado:
-		# Modo Maximizado: Avatar 3D em tela cheia da cabeça aos pés!
-		# A interface se posiciona no rodapé (apenas a barra de digitar e topo), permitindo ver todo o corpo
-		var alt_max_chat = mini(200, int(tela.y * 0.28))
-		var base_max = tela.y - _margem_baixo() - teclado
-		ui.position = Vector2i(0, maxi(0, base_max - alt_max_chat))
-		ui.size = Vector2i(tela.x, alt_max_chat)
-		return
-		
-	if tela.x > tela.y:
-		# Celular deitado (Paisagem / Landscape): Avatar na esquerda, interface na direita
-		var larg_avatar := int(tela.x * (0.40 if modo_avatar == "busto" else 0.50))
-		ui.position = Vector2i(larg_avatar, 0)
-		ui.size = Vector2i(tela.x - larg_avatar, tela.y - _margem_baixo() - teclado)
-	else:
-		# Celular em pé (Retrato / Portrait):
-		var frac := fracao_avatar
-		var topo: int = int(tela.y * frac) if teclado == 0 else mini(int(tela.y * frac), FAIXA_COM_TECLADO)
-		var base: int = tela.y - _margem_baixo() - teclado
-		ui.size = Vector2i(tela.x, maxi(180, base - topo))
-		ui.position = Vector2i(0, maxi(0, base - ui.size.y))
+	match modo_layout:
+		"flutuante":
+			# Modo Janela Flutuante Móvel: Chat em tela cheia (como Claude / ChatGPT)
+			# O avatar flutua transparente por cima do chat e pode ser movido para qualquer lugar!
+			ui.position = Vector2i(0, 0)
+			ui.size = Vector2i(tela.x, tela.y - _margem_baixo() - teclado)
+			if _card_movel != null and is_instance_valid(_card_movel):
+				_card_movel.visible = true
+			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
+				_bolha_avatar.visible = false
+		"corpo_todo":
+			# Modo Corpo Cheio: Avatar 3D em tamanho gigante da cabeça aos pés!
+			var alt_chat = mini(250, int(tela.y * 0.38))
+			var base = tela.y - _margem_baixo() - teclado
+			ui.position = Vector2i(0, maxi(0, base - alt_chat))
+			ui.size = Vector2i(tela.x, alt_chat)
+			if _card_movel != null and is_instance_valid(_card_movel):
+				_card_movel.visible = false
+			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
+				_bolha_avatar.visible = false
+		"chat":
+			# Modo 100% Chat: Tela cheia limpa, avatar recolhido em bolha discreta
+			ui.position = Vector2i(0, 0)
+			ui.size = Vector2i(tela.x, tela.y - _margem_baixo() - teclado)
+			if _card_movel != null and is_instance_valid(_card_movel):
+				_card_movel.visible = false
+			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
+				_bolha_avatar.visible = true
+		"topo":
+			# Modo Dividido no Topo: 34% avatar, 66% chat
+			var alt_topo = int(tela.y * 0.34) if teclado == 0 else mini(int(tela.y * 0.34), FAIXA_COM_TECLADO)
+			var base_t = tela.y - _margem_baixo() - teclado
+			ui.size = Vector2i(tela.x, maxi(180, base_t - alt_topo))
+			ui.position = Vector2i(0, maxi(0, base_t - ui.size.y))
+			if _card_movel != null and is_instance_valid(_card_movel):
+				_card_movel.visible = false
+			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
+				_bolha_avatar.visible = false
 
 func _estilizar_botao_topo(btn: Button) -> void:
 	var sb := StyleBoxFlat.new()
@@ -247,34 +263,21 @@ func _esconder_o_que_e_de_pc() -> void:
 		titulo.clip_text = true
 		titulo.add_theme_font_size_override("font_size", 16)
 		
-		# Botão alternar enquadramento (Busto -> Médio -> Corpo Todo)
+		# Botão seletor de modo do avatar (Flutuante Móvel / Corpo Cheio / Só Chat / No Topo)
 		var btn_modo := Button.new()
-		btn_modo.text = "👤 Busto"
-		btn_modo.tooltip_text = "Alternar enquadramento do avatar: Busto -> Médio -> Corpo Todo"
+		btn_modo.text = "📱 Flutuante"
+		btn_modo.tooltip_text = "Alternar modo: Flutuante Móvel -> Corpo Cheio -> Só Chat -> No Topo"
 		btn_modo.focus_mode = Control.FOCUS_NONE
-		btn_modo.custom_minimum_size = Vector2(68, 34)
+		btn_modo.custom_minimum_size = Vector2(96, 34)
 		btn_modo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		btn_modo.add_theme_font_size_override("font_size", 12)
 		_estilizar_botao_topo(btn_modo)
-		btn_modo.pressed.connect(alternar_modo_avatar)
+		btn_modo.pressed.connect(alternar_modo_layout)
 		_btn_modo_ref = btn_modo
 		titulo.get_parent().add_child(btn_modo)
 		
-		# Botão Maximizar (ícone compacto moderno estilo Claude / app mobile)
-		var btn_max := Button.new()
-		btn_max.text = "⛶"
-		btn_max.tooltip_text = "Maximizar Avatar (corpo todo da cabeça aos pés)"
-		btn_max.focus_mode = Control.FOCUS_NONE
-		btn_max.custom_minimum_size = Vector2(34, 34)
-		btn_max.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		btn_max.add_theme_font_size_override("font_size", 14)
-		_estilizar_botao_topo(btn_max)
-		btn_max.pressed.connect(maximizar_avatar)
-		_btn_max_ref = btn_max
-		titulo.get_parent().add_child(btn_max)
-		
 		for c in titulo.get_parent().get_children():
-			if c.get_class() == "Control" and c != titulo and c != _menu_btn and c != btn_modo and c != btn_max and c != ui.get("status_dot"):
+			if c.get_class() == "Control" and c != titulo and c != _menu_btn and c != btn_modo and c != ui.get("status_dot"):
 				c.visible = false
 	_montar_faixa_de_atividade()
 
@@ -286,27 +289,36 @@ func _montar_faixa_de_atividade() -> void:
 	var titulo = ui.get("title_label")
 	if titulo == null:
 		return
-	var barra: Node = titulo.get_parent().get_parent().get_parent()   # HBox > MarginContainer > PanelContainer (barra de cima)
-	var coluna: Node = barra.get_parent()                              # a coluna: barra de cima, chat, caixa de digitar
-	var faixa := VBoxContainer.new()
-	faixa.add_theme_constant_override("separation", 6)
+	var barra: Node = titulo.get_parent().get_parent().get_parent()
+	var coluna: Node = barra.get_parent()
+	var faixa := HBoxContainer.new()
+	faixa.add_theme_constant_override("separation", 8)
 	coluna.add_child(faixa)
 	coluna.move_child(faixa, barra.get_index() + 1)
-	var linha_texto := _linha_com_margem()      # 1ª linha: o texto "o que ela está fazendo", com a largura toda
-	var linha_botoes := _linha_com_margem()     # 2ª linha: "Parar observação" e "Parar"
-	faixa.add_child(linha_texto)
-	faixa.add_child(linha_botoes)
-	var alvos := {"atividade_lbl": linha_texto, "obs_btn": linha_botoes, "parar_btn": linha_botoes}
-	for nome in alvos:
-		var w = ui.get(nome)
-		if w != null:
-			w.reparent(alvos[nome], false)
-			w.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			w.custom_minimum_size = Vector2(0, ALVO_TOQUE if w is Button else 0)
-	for l in [linha_texto, linha_botoes]:
-		var dir := Control.new()                # margem da direita (a da esquerda já é o 1º filho)
-		dir.custom_minimum_size = Vector2(4, 0)
-		l.add_child(dir)
+	
+	var ativ = ui.get("atividade_lbl")
+	if ativ != null:
+		ativ.reparent(faixa, false)
+		ativ.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ativ.add_theme_font_size_override("font_size", 12)
+		ativ.add_theme_color_override("font_color", Color(0.75, 0.80, 0.90))
+	
+	var parar = ui.get("parar_btn")
+	if parar != null:
+		parar.reparent(faixa, false)
+		parar.text = "⏹ Parar"
+		parar.custom_minimum_size = Vector2(74, 26)
+		parar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		parar.add_theme_font_size_override("font_size", 11)
+		_estilizar_botao_topo(parar)
+	
+	var obs = ui.get("obs_btn")
+	if obs != null:
+		obs.reparent(faixa, false)
+		obs.custom_minimum_size = Vector2(74, 26)
+		obs.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		obs.add_theme_font_size_override("font_size", 11)
+		_estilizar_botao_topo(obs)
 
 # Uma linha horizontal com margem de 4 px à esquerda (+8 de separação). Os espaçadores têm altura ZERO: com os botões
 # escondidos a linha inteira some, sem deixar um vão.
@@ -692,16 +704,17 @@ func _enquadrar_avatar() -> void:
 	if _cam_pos_base == Vector3.ZERO:
 		_cam_pos_base = cam.global_position
 	
-	if modo_avatar == "corpo_todo":
-		# Modo Maximizado: recua e abaixa para enquadrar dos pés à cabeça perfeitamente!
-		cam.global_position = Vector3(_cam_pos_base.x, 0.58, _cam_pos_base.z + 1.55)
+	if modo_layout == "corpo_todo":
+		# Modo Corpo Cheio: recua e abaixa para enquadrar dos pés à cabeça com amplitude!
+		cam.global_position = Vector3(_cam_pos_base.x, 0.58, _cam_pos_base.z + 1.65)
 		return
 	
-	if modo_avatar == "medio":
-		cam.global_position = Vector3(_cam_pos_base.x, 0.95, _cam_pos_base.z + 0.65)
+	if modo_layout == "flutuante":
+		# Janela Móvel: foca perfeitamente no rosto e busto com detalhes nítidos
+		cam.global_position = Vector3(_cam_pos_base.x, 1.05, _cam_pos_base.z + 0.35)
 		return
 	
-	# Modo Busto / Foco no Rosto (padrão)
+	# Modo Busto / Faixa no Topo
 	cam.global_position = _cam_pos_base
 	var avatar = corpo.get_node_or_null("Akira")
 	var ponto: Vector3 = cam.global_position - cam.global_transform.basis.z * 0.9
@@ -875,3 +888,174 @@ func _ao_evento_do_modelo(nome: String, dados: Dictionary) -> void:
 			_mostrar_modelo("Instalado. O Zenith entende o que você diz, sem internet.", false, false)
 		"modelo.erro":
 			_mostrar_modelo(str(dados.get("erro", "Não consegui baixar o modelo.")), false, true)
+
+# ═══════════════════════ JANELA FLUTUANTE MÓVEL & GIRO 3D ═══════════════════════
+func _montar_card_flutuante() -> void:
+	var raiz: Control = ui.get("_raiz_ui")
+	if raiz == null:
+		return
+	
+	var card := PanelContainer.new()
+	card.name = "CardVRMFlutuante"
+	var larg := mini(170, int(tela.x * 0.42))
+	var alt := mini(235, int(tela.y * 0.32))
+	card.custom_minimum_size = Vector2(larg, alt)
+	card.size = Vector2(larg, alt)
+	if _pos_card_flutuante == Vector2(-1, -1):
+		_pos_card_flutuante = Vector2(tela.x - larg - 12, 54)
+	card.position = _pos_card_flutuante
+	
+	# Estilo translúcido elegante com cantos arredondados e borda ciano
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.09, 0.11, 0.16, 0.82)
+	sb.border_color = Color(0.25, 0.45, 0.70, 0.65)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(14)
+	sb.shadow_color = Color(0, 0, 0, 0.45)
+	sb.shadow_size = 8
+	card.add_theme_stylebox_override("panel", sb)
+	
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 2)
+	card.add_child(vb)
+	
+	# Barra de arraste do card (header)
+	var topo_card := HBoxContainer.new()
+	topo_card.custom_minimum_size.y = 24
+	topo_card.mouse_filter = Control.MOUSE_FILTER_PASS
+	topo_card.gui_input.connect(_ao_gui_input_card)
+	vb.add_child(topo_card)
+	
+	var alca := Label.new()
+	alca.text = " ⋮⋮ Zenith 3D"
+	alca.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	alca.add_theme_font_size_override("font_size", 10)
+	alca.add_theme_color_override("font_color", Color(0.70, 0.80, 0.95))
+	alca.mouse_filter = Control.MOUSE_FILTER_PASS
+	topo_card.add_child(alca)
+	
+	# Botão resetar rotação para frente
+	var btn_reset := Button.new()
+	btn_reset.text = "↺"
+	btn_reset.tooltip_text = "Centralizar avatar de frente"
+	btn_reset.focus_mode = Control.FOCUS_NONE
+	btn_reset.custom_minimum_size = Vector2(22, 20)
+	btn_reset.add_theme_font_size_override("font_size", 10)
+	_estilizar_botao_topo(btn_reset)
+	btn_reset.pressed.connect(_resetar_giro_avatar)
+	topo_card.add_child(btn_reset)
+	
+	# Botão minimizar
+	var btn_min := Button.new()
+	btn_min.text = "—"
+	btn_min.tooltip_text = "Minimizar avatar"
+	btn_min.focus_mode = Control.FOCUS_NONE
+	btn_min.custom_minimum_size = Vector2(22, 20)
+	btn_min.add_theme_font_size_override("font_size", 10)
+	_estilizar_botao_topo(btn_min)
+	btn_min.pressed.connect(func():
+		card.visible = false
+		if _bolha_avatar != null:
+			_bolha_avatar.visible = true)
+	topo_card.add_child(btn_min)
+	
+	# Textura do avatar com fundo transparente
+	var tex_rect := TextureRect.new()
+	tex_rect.name = "TexturaAvatar"
+	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tex_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tex_rect.mouse_filter = Control.MOUSE_FILTER_STOP
+	tex_rect.tooltip_text = "Arraste na horizontal para virar o avatar em 3D. Toque duplo centraliza."
+	tex_rect.gui_input.connect(_ao_gui_input_giro)
+	
+	var corpo = ui.get_parent()
+	if corpo != null and corpo.has_method("obter_textura_avatar"):
+		tex_rect.texture = corpo.obter_textura_avatar()
+	vb.add_child(tex_rect)
+	_textura_avatar = tex_rect
+	
+	raiz.add_child(card)
+	_card_movel = card
+	
+	# Bolha flutuante para reabrir quando minimizado
+	var bolha := Button.new()
+	bolha.text = "👤"
+	bolha.tooltip_text = "Abrir avatar flutuante"
+	bolha.focus_mode = Control.FOCUS_NONE
+	bolha.custom_minimum_size = Vector2(38, 38)
+	bolha.size = Vector2(38, 38)
+	bolha.position = Vector2(tela.x - 50, 54)
+	bolha.visible = false
+	_estilizar_botao_topo(bolha)
+	bolha.pressed.connect(func():
+		bolha.visible = false
+		card.visible = true)
+	raiz.add_child(bolha)
+	_bolha_avatar = bolha
+
+func _ao_gui_input_card(ev: InputEvent) -> void:
+	if ev is InputEventMouseButton:
+		if ev.button_index == MOUSE_BUTTON_LEFT:
+			_arraste_card = ev.pressed
+			_pos_toque_card = ev.global_position
+	elif ev is InputEventScreenTouch:
+		_arraste_card = ev.pressed
+		_pos_toque_card = ev.position
+	elif (ev is InputEventMouseMotion or ev is InputEventScreenDrag) and _arraste_card:
+		if _card_movel != null:
+			var nova_pos = _card_movel.position + ev.relative
+			nova_pos.x = clampf(nova_pos.x, 0.0, float(tela.x - _card_movel.size.x))
+			nova_pos.y = clampf(nova_pos.y, 44.0, float(tela.y - _card_movel.size.y - 48))
+			_card_movel.position = nova_pos
+			_pos_card_flutuante = nova_pos
+
+func _ao_gui_input_giro(ev: InputEvent) -> void:
+	if ev is InputEventMouseButton:
+		if ev.button_index == MOUSE_BUTTON_LEFT:
+			_arraste_giro = ev.pressed
+			_pos_toque_giro = ev.position
+			if ev.double_click:
+				_resetar_giro_avatar()
+	elif ev is InputEventScreenTouch:
+		_arraste_giro = ev.pressed
+		_pos_toque_giro = ev.position
+		if ev.double_tap:
+			_resetar_giro_avatar()
+	elif (ev is InputEventMouseMotion or ev is InputEventScreenDrag) and _arraste_giro:
+		var dx = ev.relative.x
+		_girar_avatar(dx * 0.015)
+
+func _configurar_toque_3d() -> void:
+	var corpo = ui.get_parent()
+	if corpo == null:
+		return
+	var area = corpo.get_node_or_null("AreaToque3D")
+	if area == null:
+		area = Control.new()
+		area.name = "AreaToque3D"
+		area.set_anchors_preset(Control.PRESET_FULL_RECT)
+		area.mouse_filter = Control.MOUSE_FILTER_PASS
+		area.gui_input.connect(_ao_gui_input_giro)
+		corpo.add_child(area)
+
+func _girar_avatar(delta: float) -> void:
+	if ui == null or not is_instance_valid(ui):
+		return
+	var corpo = ui.get_parent()
+	if corpo == null:
+		return
+	var avatar = corpo.get_node_or_null("Akira")
+	if avatar != null:
+		avatar.rotation.y += delta
+
+func _resetar_giro_avatar() -> void:
+	if ui == null or not is_instance_valid(ui):
+		return
+	var corpo = ui.get_parent()
+	if corpo == null:
+		return
+	var avatar = corpo.get_node_or_null("Akira")
+	if avatar != null:
+		avatar.rotation.y = 0.0

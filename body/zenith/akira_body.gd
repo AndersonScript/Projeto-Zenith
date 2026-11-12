@@ -358,6 +358,8 @@ func _ready():
 
 func _process(delta):
 	time += delta
+	if _op_cam != null and _op_main_cam != null and is_instance_valid(_op_main_cam):
+		_op_cam.global_transform = _op_main_cam.global_transform
 
 	# PAUSADO nesta rodada — reforço de pose de braço desligado junto com
 	# o resto do sistema de travamento (ver nota no topo do arquivo).
@@ -573,6 +575,30 @@ func _update_transparency():
 		_opacidade_desligar()
 	if _op_ativo:
 		_opacidade_atualizar(alpha)
+
+func obter_textura_avatar() -> Texture2D:
+	if _op_sub == null or not is_instance_valid(_op_sub):
+		var main_cam = get_viewport().get_camera_3d() if get_viewport() else null
+		_op_sub = SubViewport.new()
+		_op_sub.name = "AvatarSubViewport"
+		_op_sub.transparent_bg = true
+		_op_sub.disable_3d = false
+		_op_sub.gui_disable_input = true
+		_op_sub.handle_input_locally = false
+		_op_sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		_op_sub.size = Vector2i(320, 480)
+		add_child(_op_sub)
+		_op_cam = Camera3D.new()
+		_op_cam.name = "AvatarSubCam"
+		_op_sub.add_child(_op_cam)
+		if main_cam != null:
+			_op_main_cam = main_cam
+			_op_cam.projection = main_cam.projection
+			_op_cam.fov = main_cam.fov
+			_op_cam.near = main_cam.near
+			_op_cam.far = main_cam.far
+			_op_cam.global_transform = main_cam.global_transform
+	return _op_sub.get_texture()
 
 func _opacidade_ligar():
 	var main_cam = get_viewport().get_camera_3d()
