@@ -117,6 +117,7 @@ var _arms_locked: bool = false
 # vai virar uma janela de arrastar-e-ver em vez de campo numérico.
 const _VRM_ANCHOR_CFG_PATH = "user://vrm_anchor.cfg"
 var _vrm_anchor_pos_xz: Vector2 = Vector2.ZERO
+var _vrm_anchor_pos_y: float = -0.3881601
 var _vrm_anchor_rot_y: float = 0.0
 var _vrm_anchor_ready: bool = false
 # Ajuste fino manual — a ÚNICA forma de escala/deslocamento agora
@@ -157,6 +158,7 @@ func _load_or_capture_anchor(avatar_padrao: Node3D):
 	var cfg = ConfigFile.new()
 	if cfg.load(_VRM_ANCHOR_CFG_PATH) == OK and cfg.has_section_key("anchor", "pos_x"):
 		_vrm_anchor_pos_xz = Vector2(cfg.get_value("anchor", "pos_x", 0.0), cfg.get_value("anchor", "pos_z", 0.0))
+		_vrm_anchor_pos_y = cfg.get_value("anchor", "pos_y", -0.3881601)
 		_vrm_anchor_rot_y = cfg.get_value("anchor", "rot_y", 0.0)
 		_vrm_manual_offset = Vector3(cfg.get_value("adjust", "offset_x", 0.0), cfg.get_value("adjust", "offset_y", 0.0), cfg.get_value("adjust", "offset_z", 0.0))
 		_vrm_manual_scale_mult = cfg.get_value("adjust", "scale_mult", 1.0)
@@ -177,6 +179,7 @@ func _load_or_capture_anchor(avatar_padrao: Node3D):
 			_vrm_anchor_pos_xz, _vrm_anchor_rot_y, _vrm_manual_offset, _vrm_manual_scale_mult])
 	elif avatar_padrao:
 		_vrm_anchor_pos_xz = Vector2(avatar_padrao.position.x, avatar_padrao.position.z)
+		_vrm_anchor_pos_y = avatar_padrao.position.y
 		_vrm_anchor_rot_y = avatar_padrao.rotation.y
 		_save_anchor()
 		_debug_log("Primeira vez rodando — âncora capturada da Zenith padrão e salva: pos_xz=%s rot_y=%.3f" % [
@@ -187,6 +190,7 @@ func _save_anchor():
 	var cfg = ConfigFile.new()
 	cfg.load(_VRM_ANCHOR_CFG_PATH)   # preserva a outra seção se já existir
 	cfg.set_value("anchor", "pos_x", _vrm_anchor_pos_xz.x)
+	cfg.set_value("anchor", "pos_y", _vrm_anchor_pos_y)
 	cfg.set_value("anchor", "pos_z", _vrm_anchor_pos_xz.y)
 	cfg.set_value("anchor", "rot_y", _vrm_anchor_rot_y)
 	cfg.save(_VRM_ANCHOR_CFG_PATH)
@@ -218,7 +222,7 @@ func set_manual_vrm_adjust(offset: Vector3, scale_mult: float, persist: bool) ->
 		var avatar = get_node_or_null("Akira")
 		if avatar and _vrm_anchor_ready:
 			avatar.position.x = _vrm_anchor_pos_xz.x + _vrm_manual_offset.x
-			avatar.position.y = _vrm_manual_offset.y
+			avatar.position.y = _vrm_anchor_pos_y + _vrm_manual_offset.y
 			avatar.position.z = _vrm_anchor_pos_xz.y + _vrm_manual_offset.z
 			avatar.scale = Vector3.ONE * _vrm_manual_scale_mult
 		return ""
@@ -322,7 +326,7 @@ func _ready():
 				"Ajuste fino.") % esc)
 			esc = 1.0
 		avatar_inicial.position.x = _vrm_anchor_pos_xz.x + _vrm_manual_offset.x
-		avatar_inicial.position.y = _vrm_manual_offset.y
+		avatar_inicial.position.y = _vrm_anchor_pos_y + _vrm_manual_offset.y
 		avatar_inicial.position.z = _vrm_anchor_pos_xz.y + _vrm_manual_offset.z
 		avatar_inicial.scale = Vector3.ONE * esc
 	skeleton = _find_skeleton(self)
@@ -382,7 +386,7 @@ func _process(delta):
 	var av_respiro = get_node_or_null("Akira")
 	if av_respiro != null and _vrm_anchor_ready and not (_mov != null and _mov.ativo()):
 		var bob = sin(time * breath_speed * state_breath_mult) * 0.012
-		av_respiro.position.y = _vrm_manual_offset.y + bob
+		av_respiro.position.y = _vrm_anchor_pos_y + _vrm_manual_offset.y + bob
 	if chest_id != -1 and skeleton:
 		var rest_pose = skeleton.get_bone_rest(chest_id).basis.get_rotation_quaternion()
 		var breath_chest = Quaternion(Vector3(1, 0, 0), sin(time * breath_speed * state_breath_mult) * 0.035)
@@ -1096,7 +1100,7 @@ func _reposition_live(offset: Vector3, scale_mult: float):
 	if not avatar or not _vrm_anchor_ready:
 		return
 	avatar.position.x = _vrm_anchor_pos_xz.x + offset.x
-	avatar.position.y = offset.y
+	avatar.position.y = _vrm_anchor_pos_y + offset.y
 	avatar.position.z = _vrm_anchor_pos_xz.y + offset.z
 	avatar.scale = Vector3.ONE * scale_mult
 
@@ -1358,7 +1362,7 @@ func _install_avatar(new_avatar, path: String) -> String:
 	new_avatar.name = "AkiraNovo_temp"
 	add_child(new_avatar)
 	new_avatar.position.x = old_pos_xz.x + _vrm_manual_offset.x
-	new_avatar.position.y = _vrm_manual_offset.y
+	new_avatar.position.y = _vrm_anchor_pos_y + _vrm_manual_offset.y
 	new_avatar.position.z = old_pos_xz.y + _vrm_manual_offset.z
 	new_avatar.rotation.y = old_rotation_y
 	var fator = _vrm_manual_scale_mult if _vrm_manual_scale_mult > 0.01 else 1.0

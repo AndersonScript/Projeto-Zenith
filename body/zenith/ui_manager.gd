@@ -486,6 +486,9 @@ func _build_root():
 	projetos_overlay = _build_projetos_overlay()      # v1.6
 	projetos_overlay.visible = false
 	root.add_child(projetos_overlay)
+	programacao_overlay = _build_programacao_overlay()
+	programacao_overlay.visible = false
+	root.add_child(programacao_overlay)
 
 	# v13 — por último, pra ficar por cima de tudo (inclusive Configurações)
 	avatar_loading_overlay = _build_avatar_loading_overlay()
@@ -593,7 +596,7 @@ func _build_sidebar() -> PanelContainer:
 	margin.add_theme_constant_override("margin_left", 10)
 	margin.add_theme_constant_override("margin_right", 10)
 	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_bottom", 26)
 	margin.add_child(sidebar)
 	panel.add_child(margin)
 
@@ -640,6 +643,13 @@ func _build_sidebar() -> PanelContainer:
 		if brain: brain.request_projetos()
 		_show_overlay(projetos_overlay, projetos_card))
 	sidebar.add_child(projetos_btn)
+
+	# v1.22 — Área de Programação (Código e Mentoria)
+	var prog_btn = _make_button("💻  Programação", Color(0, 0, 0, 0), BG_SURFACE_2)
+	prog_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	prog_btn.pressed.connect(func():
+		_show_overlay(programacao_overlay, programacao_card))
+	sidebar.add_child(prog_btn)
 
 	var rotulo_conv = Label.new()                   # v1.7: no lugar da linha separadora
 	rotulo_conv.text = "CONVERSAS"
@@ -2049,6 +2059,7 @@ func _build_onboarding_overlay() -> Control:
 	title2.add_theme_font_size_override("font_size", 22)
 	title2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(title2)
 
 	var subtitle = Label.new()
@@ -5016,6 +5027,9 @@ func _tick_progresso(delta: float) -> void:
 #  no Explorador e ver a imagem no chat. Rodar um programa continua sendo pedido no chat (com aprovação).
 # ======================================================================
 var projetos_overlay: Control
+var programacao_page: RefCounted
+var programacao_overlay: Control
+var programacao_card: PanelContainer
 var projetos_card: Control
 var projetos_abas_box: VBoxContainer          # v1.6.1: duas fileiras de abas (o que ela criou / o que ela usa como base)
 var projetos_fonte_dialog: FileDialog           # v1.6.1: seletor de documento para a biblioteca
@@ -5387,3 +5401,55 @@ func _on_clique_atualizar():
 			brain.aplicar_atualizacao()
 		else:
 			brain.send_chat("/atualizar instalar")
+
+
+# ================= v1.22 — ÁREA DE PROGRAMAÇÃO & MENTORIA =================
+func _build_programacao_overlay() -> Control:
+	var overlay = Control.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var dim = ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.65)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.pressed:
+			_hide_overlay(programacao_overlay))
+	overlay.add_child(dim)
+
+	var card = PanelContainer.new()
+	card.add_theme_stylebox_override("panel", _panel_style(BG_SURFACE, 16, CYAN, 1))
+	card.anchor_left = 0.08
+	card.anchor_right = 0.92
+	card.anchor_top = 0.05
+	card.anchor_bottom = 0.95
+	overlay.add_child(card)
+	programacao_card = card
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	var margin = MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 18)
+	margin.add_child(vbox)
+	card.add_child(margin)
+
+	var header = HBoxContainer.new()
+	vbox.add_child(header)
+	var title = Label.new()
+	title.text = "💻  Área de Programação & Mentoria"
+	title.add_theme_color_override("font_color", CYAN)
+	title.add_theme_font_size_override("font_size", 18)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	var close_btn = _make_button("Fechar", BG_SURFACE_2, BG_SURFACE_3)
+	close_btn.pressed.connect(func(): _hide_overlay(programacao_overlay))
+	header.add_child(close_btn)
+
+	var script = _script_opcional("res://zenith_programacao_page.gd")
+	if script:
+		programacao_page = script.new()
+		programacao_page.montar(self, brain, vbox)
+
+	return overlay

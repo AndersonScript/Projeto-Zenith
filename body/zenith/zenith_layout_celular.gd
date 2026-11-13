@@ -419,9 +419,11 @@ func fechar_gaveta() -> void:
 func preparar_cartao(card: Control) -> void:
 	if ui == null or card == null or not is_instance_valid(card):
 		return
+	if _card_movel != null and is_instance_valid(_card_movel):
+		_card_movel.visible = false
 	if card == ui.get("settings_card"):
 		_montar_navegacao_configuracoes()
-	var cheia: bool = card == ui.get("settings_card") or card == ui.get("memories_card") or card == ui.get("projetos_card")
+	var cheia: bool = card == ui.get("settings_card") or card == ui.get("memories_card") or card == ui.get("projetos_card") or card == ui.get("programacao_card")
 	var dialogo: bool = card == ui.get("approval_card") or card == ui.get("onboarding_card")
 	if not cheia and not dialogo:
 		return                                   # ex.: o cartão de "carregando avatar" tem tamanho próprio: não mexe
@@ -595,7 +597,7 @@ func _icone_seta(para_esquerda: bool, cor: Color) -> Texture2D:
 # - Grade (GridContainer) com mais de 2 colunas: passa a 2 (ex.: os 10 temas do Estúdio, 5 por linha, viram 2 por linha).
 # - Linha (HBoxContainer) cujos componentes não cabem juntos: eles passam a quebrar para a linha de baixo. A linha
 #   ORIGINAL continua no lugar (só ganha um filho, o "fluxo"), então qualquer código que a esconda/mostre segue valendo.
-const CARTOES := ["settings_card", "memories_card", "projetos_card", "approval_card", "onboarding_card"]
+const CARTOES := ["settings_card", "memories_card", "projetos_card", "programacao_card", "approval_card", "onboarding_card"]
 const MARGEM_DO_CARTAO := 56      # margens internas do cartão + barra de rolagem (px)
 
 func _largura_util() -> float:
@@ -1059,3 +1061,14 @@ func _resetar_giro_avatar() -> void:
 	var avatar = corpo.get_node_or_null("Akira")
 	if avatar != null:
 		avatar.rotation.y = 0.0
+
+func ao_esconder_overlay(_overlay: Control) -> void:
+	if _card_movel != null and is_instance_valid(_card_movel):
+		var tem_aberta := false
+		var cartoes_checar = [ui.settings_overlay, ui.approval_overlay, ui.onboarding_overlay, ui.memories_overlay, ui.projetos_overlay, ui.get("programacao_overlay")]
+		for c in cartoes_checar:
+			if c != null and is_instance_valid(c) and c.visible:
+				tem_aberta = true
+				break
+		if not tem_aberta:
+			_card_movel.visible = true

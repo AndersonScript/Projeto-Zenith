@@ -68,6 +68,9 @@ var _http_search: HTTPRequest = null
 var _termo_busca_pendente: String = ""
 var _texto_usuario_pendente: String = ""
 var _historico_mobile: Array = []
+var _audio_player_el: AudioStreamPlayer = null
+var _eleven_http: HTTPRequest = null
+var _ultimo_texto_tts: String = ""
 var _standalone_timer: float = 0.0
 var _standalone_inicializado: bool = false
 var _ai_respondendo: bool = false
@@ -804,18 +807,83 @@ func _falar_tts(texto: String) -> void:
 	var limpo = _limpar_texto_para_tts(texto)
 	if limpo.is_empty():
 		return
+	_ultimo_texto_tts = limpo
 	if DisplayServer.tts_is_speaking():
 		DisplayServer.tts_stop()
-	var vozes = DisplayServer.tts_get_voices_for_language("pt")
-	var voz = ""
-	if vozes.size() > 0:
-		voz = vozes[0]
+	if _audio_player_el != null and is_instance_valid(_audio_player_el) and _audio_player_el.playing:
+		_audio_player_el.stop()
+
+	# 1. Verifica se usuário configurou chave do ElevenLabs
+	var chaves = _carregar_chaves_locais_dict()
+	if chaves.has("elevenlabs") and not chaves["elevenlabs"].is_empty():
+		var k = str(chaves["elevenlabs"][0]).strip_edges()
+		if not k.is_empty():
+			_falar_elevenlabs(limpo, k)
+			return
+
+	# 2. Fallback para TTS nativo brasileiro (pt-BR)
+	_falar_tts_nativo_brasil(limpo)
+
+func _falar_elevenlabs(texto: String, api_key: String) -> void:
+	if _eleven_http == null or not is_instance_valid(_eleven_http):
+		_eleven_http = HTTPRequest.new()
+		add_child(_eleven_http)
+		_eleven_http.request_completed.connect(_ao_elevenlabs_resposta)
+
+	var voice_id = "21m00Tcm4TlvDq8ikWAM" # Rachel / Multilingual
+	var url = "https://api.elevenlabs.io/v1/text-to-speech/" + voice_id
+	var headers = PackedStringArray([
+		"xi-api-key: " + api_key,
+		"Content-Type: application/json"
+	])
+	var body = JSON.stringify({
+		"text": texto,
+		"model_id": "eleven_multilingual_v2"
+	})
+	var err = _eleven_http.request(url, headers, HTTPClient.METHOD_POST, body)
+	if err != OK:
+		_falar_tts_nativo_brasil(texto)
+
+func _ao_elevenlabs_resposta(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	if response_code == 200 and body.size() > 100:
+		if _audio_player_el == null or not is_instance_valid(_audio_player_el):
+			_audio_player_el = AudioStreamPlayer.new()
+			add_child(_audio_player_el)
+		var mp3 = AudioStreamMP3.new()
+		mp3.data = body
+		_audio_player_el.stream = mp3
+		_audio_player_el.play()
 	else:
-		var todas = DisplayServer.tts_get_voices()
-		if todas.size() > 0:
-			voz = todas[0]
-	if voz != "":
-		DisplayServer.tts_speak(limpo, voz)
+		print("[Zenith/ElevenLabs] Falhou (código %d). Usando voz nativa pt-BR." % response_code)
+		_falar_tts_nativo_brasil(_ultimo_texto_tts)
+
+func _falar_tts_nativo_brasil(limpo: String) -> void:
+	var vozes = DisplayServer.tts_get_voices()
+	var voz_escolhida = ""
+
+	# Procura voz expressamente brasileira
+	for v in vozes:
+		var vl = v.to_lower()
+		if "pt-br" in vl or "pt_br" in vl or "brasil" in vl or "brazil" in vl or "cbr" in vl:
+			voz_escolhida = v
+			break
+
+	# Se não achou por nome, busca idioma 'pt' que NÃO seja pt-PT
+	if voz_escolhida.is_empty():
+		var vozes_pt = DisplayServer.tts_get_voices_for_language("pt")
+		for v in vozes_pt:
+			var vl = v.to_lower()
+			if not ("pt-pt" in vl or "pt_pt" in vl or "portugal" in vl):
+				voz_escolhida = v
+				break
+		if voz_escolhida.is_empty() and vozes_pt.size() > 0:
+			voz_escolhida = vozes_pt[0]
+
+	if voz_escolhida.is_empty() and vozes.size() > 0:
+		voz_escolhida = vozes[0]
+
+	if not voz_escolhida.is_empty():
+		DisplayServer.tts_speak(limpo, voz_escolhida)
 
 func _limpar_texto_para_tts(texto: String) -> String:
 	var regex = RegEx.new()

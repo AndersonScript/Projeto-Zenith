@@ -362,7 +362,7 @@ def tratar(texto: str, ctx: dict = None):
                     + ". (/programas mostra os que existem.)")
 
     # ---------- v22: Bíblia (cartões) ----------
-    if nome in ("biblia", "bíblia", "cartoes", "cartões"):
+    if nome in ("diretrizes", "conhecimento", "manual", "biblia", "bíblia", "cartoes", "cartões"):
         partes = arg.split()
         if partes and partes[0].lower() in ("apagar", "esquecer", "remover") and len(partes) > 1:
             return resp(_conhec.apagar_aprendizado(partes[1]))

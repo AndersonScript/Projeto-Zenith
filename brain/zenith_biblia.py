@@ -253,7 +253,7 @@ def carregar_extra(config_dir=None) -> str:
 # ------------------------------------------------------------------ o que vai pro prompt
 def bloco_fixo(user: str = "", persona: str = "Zenith", pasta_criacoes: str = "", extra: str = "") -> str:
     """Seção 'essencial' + 'corpo' + regras pessoais. Vai no prompt do sistema, sempre."""
-    partes = ["BÍBLIA DO ZENITH — o que você precisa saber, seja qual for a IA por trás de você:"]
+    partes = ["DIRETRIZES DO ZENITH — Princípios e conhecimentos fundamentais para qualquer IA:"]
     for chave in ("essencial", "corpo"):
         partes.append(f"## {SECOES[chave]['titulo']}\n" + _preencher(SECOES[chave]["texto"], user, persona, pasta_criacoes))
     extra = (extra or "").strip()[:LIMITE_EXTRA]
@@ -284,13 +284,13 @@ def guia_para(mensagem: str, user: str = "", persona: str = "Zenith", pasta_cria
     if not ids:
         return ""
     blocos = [f"### {SECOES[i]['titulo']}\n" + _preencher(SECOES[i]["texto"], user, persona, pasta_criacoes) for i in ids]
-    return "[Guia da Bíblia do Zenith para esta tarefa — siga]:\n" + "\n\n".join(blocos)
+    return "[Guia de Diretrizes do Zenith para esta tarefa — siga]:\n" + "\n\n".join(blocos)
 
 
 # ------------------------------------------------------------------ o documento legível
 def gerar_markdown() -> str:
     linhas = [
-        "# Bíblia do Zenith",
+        "# Diretrizes do Zenith (Base de Conhecimento)",
         "",
         "> **Gerado a partir de `brain/zenith_biblia.py`** (a fonte única). Não edite este arquivo à mão: edite o módulo",
         "> e rode `python -c \"from brain import zenith_biblia as b; open('BIBLIA_ZENITH.md','w',encoding='utf-8').write(b.gerar_markdown())\"`",
