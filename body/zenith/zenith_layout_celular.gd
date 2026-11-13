@@ -194,9 +194,10 @@ func _posicionar_janela() -> void:
 	match modo_layout:
 		"flutuante":
 			# Modo Janela Flutuante Móvel: Chat em tela cheia (como Claude / ChatGPT)
-			# O avatar flutua transparente por cima do chat e pode ser movido para qualquer lugar!
+			# Cobre 100% da tela para NUNCA vazar a VRM 3D por baixo:
 			ui.position = Vector2i(0, 0)
-			ui.size = Vector2i(tela.x, tela.y - _margem_baixo() - teclado)
+			ui.size = Vector2i(tela.x, tela.y)
+			_ajustar_margem_inferior_mobile(teclado)
 			if _card_movel != null and is_instance_valid(_card_movel):
 				_card_movel.visible = true
 			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
@@ -214,7 +215,8 @@ func _posicionar_janela() -> void:
 		"chat":
 			# Modo 100% Chat: Tela cheia limpa, avatar recolhido em bolha discreta
 			ui.position = Vector2i(0, 0)
-			ui.size = Vector2i(tela.x, tela.y - _margem_baixo() - teclado)
+			ui.size = Vector2i(tela.x, tela.y)
+			_ajustar_margem_inferior_mobile(teclado)
 			if _card_movel != null and is_instance_valid(_card_movel):
 				_card_movel.visible = false
 			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
@@ -229,6 +231,14 @@ func _posicionar_janela() -> void:
 				_card_movel.visible = false
 			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
 				_bolha_avatar.visible = false
+
+func _ajustar_margem_inferior_mobile(teclado: int) -> void:
+	if ui == null or not is_instance_valid(ui):
+		return
+	var m = ui.get("_margem_entrada")
+	if m is MarginContainer:
+		var pad: int = _margem_baixo() + teclado
+		m.add_theme_constant_override("margin_bottom", maxi(14, pad + 10))
 
 func _estilizar_botao_topo(btn: Button) -> void:
 	var sb := StyleBoxFlat.new()

@@ -15,10 +15,10 @@ config/name="Zenith"
 run/main_scene="res://addons/vrm/node_constraint/icons/Akira_Body.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.png"
-boot_splash/bg_color=Color(0.047, 0.051, 0.059, 1)
+boot_splash/bg_color=Color(0.047, 0.055, 0.065, 1)
 boot_splash/show_image=true
 boot_splash/image="res://assets/zenith_splash.png"
-boot_splash/fullsize=true
+boot_splash/fullsize=false
 boot_splash/use_filter=true
 
 [autoload]

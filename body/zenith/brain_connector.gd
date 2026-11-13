@@ -516,7 +516,7 @@ func _processar_chat_standalone(text: String, anexos: Array = []) -> void:
 	emit_signal("atividade", "pensando", "💭", "Pensando na resposta...", true)
 	_despachar_ia(prov_escolhido, chave_escolhida, text)
 
-var _modelos_gemini: Array = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-1.5-pro"]
+var _modelos_gemini: Array = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash-lite", "gemini-1.5-pro"]
 var _gemini_modelo_idx: int = 0
 var _gemini_chave_atual: String = ""
 var _gemini_prompt_atual: String = ""

@@ -249,6 +249,7 @@ func _ready():
 	# v13 — pré-carrega/verifica os avatares do projeto assim que a UI existe
 	call_deferred("_iniciar_pre_carregamento_avatares", false)
 	_aplicar_layout_celular()      # v1.12 (port celular): só no Android (ou com --layout-celular); no PC nada muda
+	call_deferred("_build_animated_splash")
 
 
 # NOVO v10 — única função _process() deste script, de propósito (o
@@ -335,16 +336,16 @@ func _show_overlay(overlay: Control, card: Control):
 		layout_celular.preparar_cartao(card)      # v1.14 (port celular): cartão vira tela cheia / diálogo largo; no PC nada muda
 	overlay.visible = true
 	overlay.modulate.a = 0.0
-	card.scale = Vector2(0.96, 0.96)
+	card.scale = Vector2(0.92, 0.92)
 	card.pivot_offset = card.size / 2.0
 	var tween = create_tween().set_parallel(true)
-	tween.tween_property(overlay, "modulate:a", 1.0, 0.18)
-	tween.tween_property(card, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(overlay, "modulate:a", 1.0, 0.22)
+	tween.tween_property(card, "scale", Vector2.ONE, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _hide_overlay(overlay: Control):
 	var tween = create_tween()
-	tween.tween_property(overlay, "modulate:a", 0.0, 0.12)
+	tween.tween_property(overlay, "modulate:a", 0.0, 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tween.tween_callback(func(): overlay.visible = false)
 
 
@@ -1244,7 +1245,10 @@ func _add_bubble(text: String, sender: String, timestamp: String = ""):
 
 	row.set_meta("col", content_col)          # v28: pra achar o balão (equação no meio do texto, reajuste de largura)
 	row.set_meta("ia", not is_user)
+	row.modulate.a = 0.0
 	chat_log.add_child(row)
+	var tw_row = row.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw_row.tween_property(row, "modulate:a", 1.0, 0.22)
 	await get_tree().process_frame
 	chat_scroll.scroll_vertical = int(chat_scroll.get_v_scroll_bar().max_value)
 	return label   # FEATURE (streaming): quem chama pode guardar essa referência
@@ -5453,3 +5457,106 @@ func _build_programacao_overlay() -> Control:
 		programacao_page.montar(self, brain, vbox)
 
 	return overlay
+
+
+# ================= ABERTURA ANIMADA (SPLASH SCREEN RESPONSIVA) =================
+func _build_animated_splash() -> void:
+	if _raiz_ui == null or not is_instance_valid(_raiz_ui):
+		return
+	var splash := Control.new()
+	splash.name = "AnimatedSplash"
+	splash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	splash.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.047, 0.055, 0.065, 1.0)
+	splash.add_child(bg)
+	
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	splash.add_child(center)
+	
+	var vb := VBoxContainer.new()
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_theme_constant_override("separation", 18)
+	center.add_child(vb)
+	
+	# Logo Container com anel e glow cibernético
+	var logo_panel := PanelContainer.new()
+	logo_panel.custom_minimum_size = Vector2(130, 130)
+	var sb_logo := StyleBoxFlat.new()
+	sb_logo.bg_color = Color(0.08, 0.11, 0.14, 0.95)
+	sb_logo.border_color = Color(0.0, 0.95, 0.75, 0.85) # Glowing Emerald/Cyan
+	sb_logo.set_border_width_all(2)
+	sb_logo.set_corner_radius_all(32)
+	sb_logo.shadow_color = Color(0.0, 0.95, 0.75, 0.35)
+	sb_logo.shadow_size = 24
+	logo_panel.add_theme_stylebox_override("panel", sb_logo)
+	
+	var logo_margin := MarginContainer.new()
+	for s in ["left", "right", "top", "bottom"]:
+		logo_margin.add_theme_constant_override("margin_" + s, 12)
+	logo_panel.add_child(logo_margin)
+	
+	var logo_rect := TextureRect.new()
+	logo_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var splash_tex = load("res://assets/zenith_splash.png")
+	if splash_tex is Texture2D:
+		logo_rect.texture = splash_tex
+	logo_margin.add_child(logo_rect)
+	
+	var logo_center := CenterContainer.new()
+	logo_center.add_child(logo_panel)
+	vb.add_child(logo_center)
+	
+	# Título "Seja bem-vindo"
+	var lbl_welcome := Label.new()
+	lbl_welcome.text = "Seja bem-vindo"
+	lbl_welcome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_welcome.add_theme_font_size_override("font_size", 24)
+	lbl_welcome.add_theme_color_override("font_color", Color(0.95, 0.96, 0.98))
+	vb.add_child(lbl_welcome)
+	
+	# Subtítulo "ZENITH · VERSÃO 1.0"
+	var lbl_sub := Label.new()
+	lbl_sub.text = "ZENITH · VERSÃO 1.0"
+	lbl_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_sub.add_theme_font_size_override("font_size", 13)
+	lbl_sub.add_theme_color_override("font_color", Color(0.0, 0.90, 0.72))
+	vb.add_child(lbl_sub)
+	
+	# Status com pontinhos animados
+	var lbl_status := Label.new()
+	lbl_status.name = "StatusLabel"
+	lbl_status.text = "iniciando sistemas..."
+	lbl_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_status.add_theme_font_size_override("font_size", 12)
+	lbl_status.add_theme_color_override("font_color", Color(0.55, 0.62, 0.70))
+	vb.add_child(lbl_status)
+	
+	_raiz_ui.add_child(splash)
+	
+	# Animação de respiração do logo
+	logo_panel.pivot_offset = Vector2(65, 65)
+	var tw_pulse := logo_panel.create_tween().set_loops()
+	tw_pulse.tween_property(logo_panel, "scale", Vector2(1.05, 1.05), 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw_pulse.tween_property(logo_panel, "scale", Vector2(0.96, 0.96), 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	
+	# Animação dos pontinhos de carregamento
+	var tw_dots := lbl_status.create_tween().set_loops()
+	tw_dots.tween_callback(func(): lbl_status.text = "iniciando sistemas.")
+	tw_dots.tween_interval(0.3)
+	tw_dots.tween_callback(func(): lbl_status.text = "iniciando sistemas..")
+	tw_dots.tween_interval(0.3)
+	tw_dots.tween_callback(func(): lbl_status.text = "iniciando sistemas...")
+	tw_dots.tween_interval(0.3)
+	
+	# Transição suave de saída após 1.6 segundos
+	get_tree().create_timer(1.6).timeout.connect(func():
+		if is_instance_valid(splash):
+			var tw_out := splash.create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw_out.tween_property(splash, "modulate:a", 0.0, 0.5)
+			tw_out.tween_property(splash, "scale", Vector2(1.03, 1.03), 0.5)
+			tw_out.chain().tween_callback(splash.queue_free))

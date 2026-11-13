@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://d3jbfelev2k6r"]
 
 [ext_resource type="Script" uid="uid://dpsaqo3y7ax0v" path="res://akira_body.gd" id="1_jgwsg"]
-[ext_resource type="PackedScene" uid="uid://2l2j1oapofm" path="res://addons/avatars/Akira.vrm" id="1_x4eyn"]
+[ext_resource type="PackedScene" uid="uid://bf3qcsihlyuet" path="res://addons/avatars/Zenith 1.0.vrm" id="1_x4eyn"]
 [ext_resource type="Script" uid="uid://bto44goschblj" path="res://addons/vrm/vrm_spring_bone.gd" id="2_jgwsg"]
 [ext_resource type="Script" uid="uid://dvnpt0a3u34l1" path="res://addons/vrm/vrm_collider_group.gd" id="3_lpk2j"]
 [ext_resource type="Script" uid="uid://cucpi5tfay7wm" path="res://addons/vrm/vrm_collider.gd" id="4_5ce5a"]
