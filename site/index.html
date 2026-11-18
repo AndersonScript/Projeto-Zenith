@@ -230,7 +230,7 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
       <div class="card"><h3><span>◆</span>Olha a tela e a câmera</h3><p>Só quando você pede, e com aviso visível na tela enquanto observa.</p></div>
       <div class="card"><h3><span>◆</span>Imagens e vídeos</h3><p>Corta, junta, legenda e narra vídeos. Imagens por serviços que você liga.</p></div>
       <div class="card"><h3><span>◆</span>Biblioteca</h3><p>Mostra o que ela criou (programas por linguagem, sites, imagens, vídeos) e no que ela se baseia.</p></div>
-      <div class="card"><h3><span>◆</span>Avatar 3D que se mexe</h3><p>Gesticula, muda de expressão e fica sempre visível. Pulo e dança estão em teste.</p></div>
+      <div class="card"><h3><span>◆</span>Avatar 3D Oficial (Zenith 1.0)</h3><p>Modelo humanoide VRM oficial criado pelo Anderson com sobretudo esmeralda steampunk. <a href="Zenith%201.0.vrm" download="Zenith 1.0.vrm" style="color:var(--cyan);text-decoration:underline;font-weight:600;">Baixar Modelo VRM 🎭</a></p></div>
     </div>
   </section>
 
@@ -441,6 +441,10 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
       a_apk.onclick=function(){alert("A versão para celular Android está na fase de testes (Prova 1). O APK estará disponível para download direto aqui assim que exportado!");};
       acoes.appendChild(a_apk);
     }
+    var a_vrm=el("a","botao","Baixar Modelo 3D (Zenith 1.0.vrm) 🎭");
+    a_vrm.href="Zenith%201.0.vrm";
+    a_vrm.setAttribute("download","Zenith 1.0.vrm");
+    acoes.appendChild(a_vrm);
     var lm=m.limpar;
     if(lm&&seguro(lm.url)&&lm.sha256&&!/PREENCHER/.test(lm.sha256)){
       var la=el("a","botao fantasma","Limpar ou desinstalar");la.href="/limpar";acoes.appendChild(la);
@@ -456,6 +460,9 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
     }
     if(apk&&apk.sha256){
       rod.appendChild(blocoHash("SHA-256 do Zenith.apk"+(mb(apk.tamanho)?" · "+mb(apk.tamanho):""),apk.sha256,apk.arquivo));
+    }
+    if(m.vrm&&m.vrm.sha256){
+      rod.appendChild(blocoHash("SHA-256 do Zenith 1.0.vrm"+(mb(m.vrm.tamanho)?" · "+mb(m.vrm.tamanho):""),m.vrm.sha256,m.vrm.arquivo));
     }
     box.appendChild(rod);
 
@@ -476,6 +483,11 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
         cta_mob.onclick = function(){alert("A versão para celular Android está na fase de testes (Prova 1). O APK estará disponível para download direto aqui assim que exportado!");};
         cta.appendChild(cta_mob);
       }
+      var cta_vrm = el("a","botao fantasma","Modelo 3D VRM 🎭");
+      cta_vrm.href = "Zenith%201.0.vrm";
+      cta_vrm.setAttribute("download","Zenith 1.0.vrm");
+      cta_vrm.style.marginLeft = "8px";
+      cta.appendChild(cta_vrm);
     }
   }
 

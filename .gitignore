@@ -42,6 +42,9 @@ body/zenith/*.translation
 # Avatares: só entram se a LICENÇA permitir redistribuir (veja body/zenith/addons/avatars/LEIA-ME.md)
 *.vrm
 *.vrm.import
+!body/zenith/addons/avatars/Zenith 1.0.vrm
+!body/zenith/addons/avatars/Zenith 1.0.vrm.import
+!site/Zenith 1.0.vrm
 
 # Binários pesados
 *.exe

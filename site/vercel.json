@@ -20,6 +20,16 @@
       "source": "/android",
       "destination": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith.apk",
       "permanent": false
+    },
+    {
+      "source": "/vrm",
+      "destination": "/Zenith%201.0.vrm",
+      "permanent": false
+    },
+    {
+      "source": "/avatar",
+      "destination": "/Zenith%201.0.vrm",
+      "permanent": false
     }
   ],
   "headers": [

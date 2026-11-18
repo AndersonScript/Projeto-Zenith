@@ -39,6 +39,14 @@
     "tamanho": 65439224,
     "notas": "Ponte por E-mail (Celular ↔ PC) sem banco de dados, comandos remotos (status, print, busca e envio de arquivos) e sincronização privada."
   },
+  "vrm": {
+    "versao": "1.0",
+    "arquivo": "Zenith 1.0.vrm",
+    "url": "Zenith%201.0.vrm",
+    "sha256": "8edb6efec0f5674973f3cad5992913998b604fe5e2a702cd1abc0a099c6fc78e",
+    "tamanho": 16383668,
+    "notas": "Avatar 3D oficial humanoide VRM da Zenith criado pelo Anderson com textura personalizada esmeralda steampunk."
+  },
   "version": "1.24",
   "notes": "Zenith v1.24: Avatar oficial Zenith 1.0 exclusivo, eliminacao de flutuacao e suavizacao organica de gestos (duvida/pensar), otimizacao de temperatura/bateria mobile (VSync e limite 45 FPS), correcao de permissao de microfone Android."
 }

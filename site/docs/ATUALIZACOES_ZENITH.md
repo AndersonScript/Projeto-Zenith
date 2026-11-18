@@ -44,7 +44,7 @@ Atendendo à visão do Anderson de manter o projeto **100% anônimo, descentrali
 
 ### 🪟 2.2 Janela Flutuante 3D Móvel com Fundo Transparente (PiP)
 * **Zero Fundo Preto:** Renderização com canal alfa puro (`transparent_bg = true`).
-* **Arrastável pelo Toque:** Mova a Akira para qualquer lugar da tela com o dedo pelo cabeçalho `⋮⋮ Zenith 3D`. Botão de minimizar `—` em bolha discreta e `↺` para reposicionar.
+* **Arrastável pelo Toque:** Mova o avatar Zenith para qualquer lugar da tela com o dedo pelo cabeçalho `⋮⋮ Zenith 3D`. Botão de minimizar `—` em bolha discreta e `↺` para reposicionar.
 
 ### 🧍 2.3 Quatro Modos de Exibição com 1 Toque
 1. **`📱 Flutuante`:** Chat 100% tela cheia estilo Claude com a janela 3D móvel flutuando.
@@ -69,3 +69,4 @@ Atendendo à visão do Anderson de manter o projeto **100% anônimo, descentrali
 
 * **📱 Android:** Baixe o arquivo **`Zenith.apk`** diretamente na pasta **Downloads** do seu computador ([Zenith.apk](file:///C:/Users/ander/Downloads/Zenith.apk)), ou pela aba [Releases do GitHub](https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith.apk).
 * **💻 Windows:** Baixe o **`ZenithLauncher.exe`** ou o pacote completo pelo site oficial: [projeto-zenith-five.vercel.app](https://projeto-zenith-five.vercel.app).
+* **🎭 Avatar 3D Oficial:** Baixe o arquivo **`Zenith 1.0.vrm`** pelo site oficial [projeto-zenith-five.vercel.app/Zenith%201.0.vrm](https://projeto-zenith-five.vercel.app/Zenith%201.0.vrm) ou diretamente na pasta de Downloads ([Zenith 1.0.vrm](file:///C:/Users/ander/Downloads/Zenith%201.0.vrm)).
