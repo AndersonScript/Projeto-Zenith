@@ -344,9 +344,13 @@ func _show_overlay(overlay: Control, card: Control):
 
 
 func _hide_overlay(overlay: Control):
-	var tween = create_tween()
-	tween.tween_property(overlay, "modulate:a", 0.0, 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tween.tween_callback(func(): overlay.visible = false)
+	var tween = create_tween().set_parallel(true)
+	tween.tween_property(overlay, "modulate:a", 0.0, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	var card = overlay.get_child(0) if overlay.get_child_count() > 0 else null
+	if card is Control:
+		card.pivot_offset = card.size / 2.0
+		tween.tween_property(card, "scale", Vector2(0.92, 0.92), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(func(): overlay.visible = false)
 
 
 func _connect_brain_signals():
@@ -561,7 +565,25 @@ func _make_button(text: String, bg: Color, hover: Color, text_color: Color = Col
 	b.add_theme_color_override("font_color", text_color)
 	b.add_theme_color_override("font_hover_color", text_color)
 	b.custom_minimum_size.y = 34
+	_vincular_animacao_toque(b)
 	return b
+
+func _vincular_animacao_toque(b: Button) -> void:
+	if b == null or not is_instance_valid(b):
+		return
+	if b.has_meta("toque_animado"):
+		return
+	b.set_meta("toque_animado", true)
+	b.button_down.connect(func():
+		b.pivot_offset = b.size / 2.0
+		var tw = b.create_tween()
+		tw.tween_property(b, "scale", Vector2(0.95, 0.95), 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	)
+	b.button_up.connect(func():
+		b.pivot_offset = b.size / 2.0
+		var tw = b.create_tween()
+		tw.tween_property(b, "scale", Vector2.ONE, 0.10).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	)
 
 
 # ================= v1.1 — ÍCONES PRÓPRIOS (no lugar dos emojis) =================
@@ -578,6 +600,7 @@ func _ic(b: Button, texto: String, cor: Color = Color(0, 0, 0, 0), tam: int = 18
 func _iconizar_arvore(no: Node) -> void:
 	if no is Button and not (no is OptionButton) and not (no is CheckBox) and not (no is CheckButton):
 		var b: Button = no
+		_vincular_animacao_toque(b)
 		if b.text != "" and Icones.separar(b.text)[0] != "":
 			_ic(b, b.text)
 	for filho in no.get_children():
@@ -2108,17 +2131,22 @@ func _build_onboarding_overlay() -> Control:
 	desc_field.placeholder_text = "Ex: bem-humorada, direta, curiosa por ciência... (deixe em branco pra usar o padrão)"
 	form_card.add_child(desc_field)
 
-	var btn_row = HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 10)
-	vbox.add_child(btn_row)
-
-	var quick_btn = _make_button("Usar Zenith (padrão)", BG_SURFACE_2, BG_SURFACE_3)
-	quick_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_row.add_child(quick_btn)
+	var btn_col = VBoxContainer.new()
+	btn_col.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_col.add_theme_constant_override("separation", 10)
+	btn_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(btn_col)
 
 	var start_btn = _make_button("Começar", CYAN, CYAN_DIM, Color("04141a"))
-	start_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_row.add_child(start_btn)
+	start_btn.custom_minimum_size = Vector2(240, 48)
+	start_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn_col.add_child(start_btn)
+
+	var quick_btn = _make_button("Usar Zenith (padrão)", Color(0, 0, 0, 0), BG_SURFACE_2, TEXT_MUTED)
+	quick_btn.flat = true
+	quick_btn.custom_minimum_size = Vector2(200, 32)
+	quick_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn_col.add_child(quick_btn)
 
 	quick_btn.pressed.connect(func():
 		if brain:

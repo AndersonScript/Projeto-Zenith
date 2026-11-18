@@ -190,20 +190,28 @@ func _posicionar_janela() -> void:
 	ui.unresizable = true
 	ui.min_size = Vector2i(180, 180)
 	var teclado: int = maxi(0, _teclado_px)
+	var root_h: int = int(ceil(ui.get_tree().root.get_visible_rect().size.y)) if (ui.get_tree() and ui.get_tree().root) else tela.y
+	var root_w: int = int(ceil(ui.get_tree().root.get_visible_rect().size.x)) if (ui.get_tree() and ui.get_tree().root) else tela.x
+	var root_cam = ui.get_tree().root.get_camera_3d() if (ui.get_tree() and ui.get_tree().root) else null
 	
 	match modo_layout:
 		"flutuante":
 			# Modo Janela Flutuante Móvel: Chat em tela cheia (como Claude / ChatGPT)
 			# Cobre 100% da tela para NUNCA vazar a VRM 3D por baixo:
 			ui.position = Vector2i(0, 0)
-			ui.size = Vector2i(tela.x, tela.y)
+			ui.size = Vector2i(maxi(tela.x, root_w), maxi(tela.y, root_h) + 120)
 			_ajustar_margem_inferior_mobile(teclado)
 			if _card_movel != null and is_instance_valid(_card_movel):
 				_card_movel.visible = true
 			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
 				_bolha_avatar.visible = false
+			# Desativa a câmera 3D de fundo para não vazar avatar embaixo e poupar GPU/bateria
+			if root_cam != null and is_instance_valid(root_cam):
+				root_cam.cull_mask = 0
 		"corpo_todo":
 			# Modo Corpo Cheio: Avatar 3D em tamanho gigante da cabeça aos pés!
+			if root_cam != null and is_instance_valid(root_cam):
+				root_cam.cull_mask = 1048575
 			var alt_chat = mini(250, int(tela.y * 0.38))
 			var base = tela.y - _margem_baixo() - teclado
 			ui.position = Vector2i(0, maxi(0, base - alt_chat))
@@ -215,14 +223,18 @@ func _posicionar_janela() -> void:
 		"chat":
 			# Modo 100% Chat: Tela cheia limpa, avatar recolhido em bolha discreta
 			ui.position = Vector2i(0, 0)
-			ui.size = Vector2i(tela.x, tela.y)
+			ui.size = Vector2i(maxi(tela.x, root_w), maxi(tela.y, root_h) + 120)
 			_ajustar_margem_inferior_mobile(teclado)
 			if _card_movel != null and is_instance_valid(_card_movel):
 				_card_movel.visible = false
 			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
 				_bolha_avatar.visible = true
+			if root_cam != null and is_instance_valid(root_cam):
+				root_cam.cull_mask = 0
 		"topo":
 			# Modo Dividido no Topo: 34% avatar, 66% chat
+			if root_cam != null and is_instance_valid(root_cam):
+				root_cam.cull_mask = 1048575
 			var alt_topo = int(tela.y * 0.34) if teclado == 0 else mini(int(tela.y * 0.34), FAIXA_COM_TECLADO)
 			var base_t = tela.y - _margem_baixo() - teclado
 			ui.size = Vector2i(tela.x, maxi(180, base_t - alt_topo))

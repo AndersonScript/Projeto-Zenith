@@ -516,7 +516,7 @@ func _processar_chat_standalone(text: String, anexos: Array = []) -> void:
 	emit_signal("atividade", "pensando", "💭", "Pensando na resposta...", true)
 	_despachar_ia(prov_escolhido, chave_escolhida, text)
 
-var _modelos_gemini: Array = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash-lite", "gemini-1.5-pro"]
+var _modelos_gemini: Array = ["gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-lite"]
 var _gemini_modelo_idx: int = 0
 var _gemini_chave_atual: String = ""
 var _gemini_prompt_atual: String = ""
@@ -560,6 +560,7 @@ func _ao_resposta_http_search(result: int, response_code: int, headers: PackedSt
 func _despachar_ia(prov: String, chave: String, prompt_final: String) -> void:
 	match prov:
 		"gemini":
+			_gemini_modelo_idx = 0
 			_enviar_gemini(chave, prompt_final)
 		"groq":
 			_enviar_openai_compativel("https://api.groq.com/openai/v1/chat/completions", chave, "llama-3.3-70b-versatile", prompt_final)
@@ -573,6 +574,7 @@ func _despachar_ia(prov: String, chave: String, prompt_final: String) -> void:
 		"llama":
 			_enviar_openai_compativel("https://openrouter.ai/api/v1/chat/completions", chave, "meta-llama/llama-3.3-70b-instruct:free", prompt_final)
 		_:
+			_gemini_modelo_idx = 0
 			_enviar_gemini(chave, prompt_final)
 
 func _enviar_gemini(chave: String, prompt_atual: String) -> void:

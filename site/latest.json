@@ -32,12 +32,12 @@
     "tamanho": 12782131
   },
   "android": {
-    "versao": "1.20",
+    "versao": "1.25",
     "arquivo": "Zenith.apk",
-    "url": "https://github.com/AndersonScript/Projeto-Zenith/releases/download/v1.0/Zenith.apk",
-    "sha256": "75b8883e789dc5b5a82e0d8603f502e8decbeb2d3a8c639f8181be04dc014b8e",
-    "tamanho": 65439224,
-    "notas": "Ponte por E-mail (Celular ↔ PC) sem banco de dados, comandos remotos (status, print, busca e envio de arquivos) e sincronização privada."
+    "url": "/Zenith.apk",
+    "sha256": "76686cdc6cf1fd1710f3f5464d250c4d25b2862012cbae24c13391eda3433585",
+    "tamanho": 46896606,
+    "notas": "Zenith v1.25: Avatar oficial Zenith 1.0 exclusivo, reenquadramento mobile perfeito sem vazamento de malha 3D, botao centralizado, animacao tatil e fluida nos botoes e janelas, correcao de fallback de IA Gemini e otimizacao de temperatura/bateria."
   },
   "vrm": {
     "versao": "1.0",
@@ -47,6 +47,6 @@
     "tamanho": 16383668,
     "notas": "Avatar 3D oficial humanoide VRM da Zenith criado pelo Anderson com textura personalizada esmeralda steampunk."
   },
-  "version": "1.24",
-  "notes": "Zenith v1.24: Avatar oficial Zenith 1.0 exclusivo, eliminacao de flutuacao e suavizacao organica de gestos (duvida/pensar), otimizacao de temperatura/bateria mobile (VSync e limite 45 FPS), correcao de permissao de microfone Android."
+  "version": "1.25",
+  "notes": "Zenith v1.25: Avatar oficial Zenith 1.0 exclusivo, reenquadramento mobile perfeito sem vazamento 3D, botao Comecar centralizado, animacoes tateis com bounce nos botoes, correcao de API Gemini (2.0/1.5 fallback) e reducao drastica de temperatura mobile."
 }
