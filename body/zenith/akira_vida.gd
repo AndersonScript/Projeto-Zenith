@@ -410,7 +410,7 @@ func _gesture_alias(n: String) -> String:
 			return "inclinar"
 		"shrug", "ombros", "dar_de_ombros", "sei_la":
 			return "ombros"
-		"think", "pensar", "pensando":
+		"think", "pensar", "pensando", "duvida", "dúvida", "curioso", "curiosa":
 			return "pensar"
 		"bow", "reverencia", "reverência", "cumprimentar":
 			return "reverencia"
@@ -441,7 +441,7 @@ func play_gesture(name: String, escala: float = 1.0) -> bool:
 	return true
 
 
-func _envelope(t: float, dur: float, rise: float = 0.28, fall: float = 0.35) -> float:
+func _envelope(t: float, dur: float, rise: float = 0.55, fall: float = 0.65) -> float:
 	if t < 0.0 or t > dur:
 		return 0.0
 	var a = smoothstep(0.0, rise, t)
@@ -480,7 +480,7 @@ func mov_set(d: Dictionary):
 
 
 func get_bounce_offset() -> float:
-	return _bounce * 0.012 * sin(_t * 18.0) * clampf(_bounce, 0.0, 1.0)
+	return 0.0 # Sem pulo vertical involuntário para não flutuar
 
 
 func _update_gesture_timer():
@@ -490,16 +490,16 @@ func _update_gesture_timer():
 		elif (_t - _g_t0) > _g_dur:
 			_gesture = ""
 			_g_hold = false
-	# micro-gestos aleatórios (em "expressivo" ou "suave", parada)
+	# micro-gestos aleatórios suaves e espaçados (sem sobressaltos ou movimentos bruscos)
 	if _gesture == "" and nivel != "desligado" and _life == IDLE and _t > _next_micro:
-		var pool = ["inclinar", "concordar", "ombros", "espreguicar"]
-		var esc = 0.7 if nivel == "expressivo" else 0.45
+		var pool = ["inclinar", "concordar", "ombros"]
+		var esc = 0.25 if nivel == "expressivo" else 0.16
 		play_gesture(pool[randi() % pool.size()], esc)
-		var t_min = 6.0 if nivel == "expressivo" else 10.0
-		var t_max = 14.0 if nivel == "expressivo" else 20.0
+		var t_min = 25.0 if nivel == "expressivo" else 35.0
+		var t_max = 45.0 if nivel == "expressivo" else 65.0
 		_next_micro = _t + randf_range(t_min, t_max)
 	elif _next_micro < _t:
-		_next_micro = _t + randf_range(8.0, 18.0)
+		_next_micro = _t + randf_range(20.0, 35.0)
 
 
 # ---------------------------------------------------------------- rosto
@@ -729,7 +729,7 @@ func _gesture_arm(side: float, gt: float) -> Array:
 			return [e, _dir(0.48, -0.82, 0.12, side), _dir(0.80, -0.15, 0.45, side)]
 		"pensar":
 			if side > 0.0:
-				return [e, _dir(0.05, -0.55, 0.55, side), _dir(-0.30, 0.78, 0.55, side)]
+				return [e, _dir(0.06, -0.48, 0.46, side), _dir(-0.22, 0.70, 0.48, side)]
 		"reverencia":
 			return [e * 0.7, _dir(0.10, -0.98, 0.25, side), _dir(0.0, -0.80, 0.55, side)]
 	return []
@@ -738,7 +738,7 @@ func _gesture_arm(side: float, gt: float) -> Array:
 func _update_arms(delta: float):
 	if not (bracos_naturais or _gesture != "" or _arms_touched or _mov.has("braco_dir") or _mov.has("braco_esq")):
 		return
-	var k = 1.0 - exp(-delta * 7.0)
+	var k = 1.0 - exp(-delta * 5.0)
 	# ombros primeiro (os braços são filhos deles): levantam em "ombros", senão ficam no repouso
 	var lift = 0.0
 	if _gesture == "ombros":
@@ -757,7 +757,7 @@ func _update_arms(delta: float):
 		var tg = _arm_targets(side, pre)
 		var kk = k
 		if _gesture == "acenar" or _gesture == "comemorar" or _mov.has("braco_dir") or _mov.has("braco_esq"):
-			kk = 1.0 - exp(-delta * 14.0)          # gesto/movimento: mais rápido que a pose parada
+			kk = 1.0 - exp(-delta * 7.5)          # gesto/movimento: transição suave e orgânica
 		_aim(int(_bones[pre + "upper"]), int(_bones[pre + "lower"]), tg[0], kk)
 		if _has(pre + "hand"):
 			_aim(int(_bones[pre + "lower"]), int(_bones[pre + "hand"]), tg[1], kk)
@@ -800,9 +800,9 @@ func _update_head_extras(delta: float):
 			roll = 0.20 * e
 			pitch = -0.04 * e
 		"pensar":
-			roll = 0.14 * e
-			pitch = -0.08 * e
-			yaw = -0.12 * e
+			roll = 0.08 * e
+			pitch = -0.04 * e
+			yaw = -0.07 * e
 		"ombros":
 			roll = 0.12 * sin(gt * TAU * 0.6) * e
 		"reverencia":

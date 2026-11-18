@@ -26,6 +26,8 @@ boot_splash/use_filter=true
 VRMRuntimeBootstrap="*res://addons/vrm/vrm_runtime_bootstrap.gd"
 
 [display]
+window/vsync/vsync_mode=1
+window/vsync/vsync_mode.android=1
 window/hdr/request_hdr_output=false
 window/hdr/request_hdr_output.android=false
 window/per_pixel_transparency/allowed=true
@@ -63,8 +65,14 @@ enabled=PackedStringArray("res://addons/Godot-MToon-Shader/plugin.cfg", "res://a
 
 common/physics_ticks_per_second=30
 
+[audio]
+
+driver/enable_input=true
+
 [rendering]
 
+anti_aliasing/quality/msaa_3d=0
+anti_aliasing/quality/msaa_3d.android=0
 textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="gl_compatibility"
 environment/defaults/default_clear_color=Color(0, 0, 0, 0)

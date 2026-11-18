@@ -39,6 +39,6 @@
     "tamanho": 65439224,
     "notas": "Ponte por E-mail (Celular ↔ PC) sem banco de dados, comandos remotos (status, print, busca e envio de arquivos) e sincronização privada."
   },
-  "version": "1.22",
-  "notes": "Zenith v1.22: Enquadramento do avatar no PC e celular, Área de Programação in-app, voz brasileira e ElevenLabs no mobile, secularização das diretrizes e ponte e-mail."
+  "version": "1.24",
+  "notes": "Zenith v1.24: Avatar oficial Zenith 1.0 exclusivo, eliminacao de flutuacao e suavizacao organica de gestos (duvida/pensar), otimizacao de temperatura/bateria mobile (VSync e limite 45 FPS), correcao de permissao de microfone Android."
 }

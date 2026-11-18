@@ -1792,6 +1792,11 @@ func _build_input_bar() -> PanelContainer:
 
 
 func _toggle_mic():
+	if OS.get_name() == "Android":
+		if not OS.is_permission_granted("android.permission.RECORD_AUDIO"):
+			OS.request_permission("android.permission.RECORD_AUDIO")
+			_add_bubble("🎙 Toque em 'Permitir' na permissão do celular para liberar o microfone!", "ai")
+			return
 	if not brain:
 		return
 	if _mic_listening:

@@ -1202,10 +1202,20 @@ func test_api_key(provider: String, key: String, custom_url: String = ""):
 	send_to_brain({"action": "test_api_key", "provider": provider, "key": key, "custom_url": custom_url})
 
 func request_mic_start():
-	send_to_brain({"action": "mic_start"})
+	if is_connected_to_brain():
+		send_to_brain({"action": "mic_start"})
+	elif _modo_celular():
+		if OS.get_name() == "Android" and not OS.is_permission_granted("android.permission.RECORD_AUDIO"):
+			OS.request_permission("android.permission.RECORD_AUDIO")
+			return
+		emit_signal("mic_state_changed", true)
+		emit_signal("akira_chat_message", "ai", "🎙️ Microfone ativado! Para ditar mensagens longas de forma contínua, você também pode usar o microfone do teclado do seu celular.")
 
 func request_mic_stop():
-	send_to_brain({"action": "mic_stop"})
+	if is_connected_to_brain():
+		send_to_brain({"action": "mic_stop"})
+	elif _modo_celular():
+		emit_signal("mic_state_changed", false)
 
 func add_ai_endpoint(name: String, api_url: String, api_key: String, model_name: String):
 	send_to_brain({"action": "add_ai_endpoint", "name": name, "api_url": api_url,

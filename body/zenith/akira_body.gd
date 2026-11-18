@@ -304,7 +304,12 @@ func _ready():
 	# O posicionamento por monitor vira uma função À PARTE, chamada com
 	# `call_deferred()` — só ELA espera os frames necessários pra "Central
 	# de Controle" existir; o resto do _ready() roda na hora, síncrono.
-	if OS.get_name() != "Android": _posicionar_janela_avatar.call_deferred()
+	if OS.get_name() == "Android":
+		# Otimização móvel para evitar superaquecimento e poupar bateria
+		Engine.max_fps = 45
+		RenderingServer.viewport_set_msaa_3d(get_viewport().get_viewport_rid(), RenderingServer.VIEWPORT_MSAA_DISABLED)
+	else:
+		_posicionar_janela_avatar.call_deferred()
 
 	base_y = position.y
 	var avatar_inicial = get_node_or_null("Akira")
@@ -380,13 +385,13 @@ func _process(delta):
 	# 	if right_arm_id != -1:
 	# 		skeleton.set_bone_pose_rotation(right_arm_id, _right_arm_rest_target)
 	
-	# RESPIRAÇÃO — mais rápida/rasa "pensando", mais calma parada
-	var state_breath_mult = 1.6 if life_state == LifeState.THINKING else (1.15 if life_state == LifeState.SPEAKING else 1.0)
-	position.y = base_y + sin(time * breath_speed * state_breath_mult) * breath_amount
+	# RESPIRAÇÃO — natural, sutil e sem fazer o personagem flutuar do chão
+	var state_breath_mult = 1.3 if life_state == LifeState.THINKING else (1.1 if life_state == LifeState.SPEAKING else 1.0)
+	position.y = base_y
 	var av_respiro = get_node_or_null("Akira")
 	if av_respiro != null and _vrm_anchor_ready and not (_mov != null and _mov.ativo()):
-		var bob = sin(time * breath_speed * state_breath_mult) * 0.012
-		av_respiro.position.y = _vrm_anchor_pos_y + _vrm_manual_offset.y + bob
+		# Pés 100% firmes no chão: sem oscilação vertical da raiz
+		av_respiro.position.y = _vrm_anchor_pos_y + _vrm_manual_offset.y
 	if chest_id != -1 and skeleton:
 		var rest_pose = skeleton.get_bone_rest(chest_id).basis.get_rotation_quaternion()
 		var breath_chest = Quaternion(Vector3(1, 0, 0), sin(time * breath_speed * state_breath_mult) * 0.035)
@@ -605,8 +610,8 @@ func obter_textura_avatar() -> Texture2D:
 		_op_sub.disable_3d = false
 		_op_sub.gui_disable_input = true
 		_op_sub.handle_input_locally = false
-		_op_sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-		_op_sub.size = Vector2i(320, 480)
+		_op_sub.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+		_op_sub.size = Vector2i(240, 360) if OS.get_name() == "Android" else Vector2i(320, 480)
 		add_child(_op_sub)
 		_op_cam = Camera3D.new()
 		_op_cam.name = "AvatarSubCam"
