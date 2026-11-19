@@ -1207,8 +1207,7 @@ func request_mic_start():
 	if is_connected_to_brain():
 		send_to_brain({"action": "mic_start"})
 	elif _modo_celular():
-		if OS.get_name() == "Android" and not OS.is_permission_granted("android.permission.RECORD_AUDIO"):
-			OS.request_permission("android.permission.RECORD_AUDIO")
+		if OS.get_name() == "Android" and not OS.request_permission("android.permission.RECORD_AUDIO"):
 			return
 		emit_signal("mic_state_changed", true)
 		emit_signal("akira_chat_message", "ai", "🎙️ Microfone ativado! Para ditar mensagens longas de forma contínua, você também pode usar o microfone do teclado do seu celular.")
