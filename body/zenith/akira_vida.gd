@@ -135,7 +135,7 @@ var _g_t0: float = 0.0
 var _g_dur: float = 0.0
 var _g_hold: bool = false            # fica até o estado de vida mudar (ex.: "pensar")
 var _g_scale: float = 1.0
-var _next_micro: float = 8.0
+var _next_micro: float = 45.0
 var _look_yaw: float = 0.0
 var _look_pitch: float = 0.0
 var _life: int = IDLE
@@ -490,16 +490,14 @@ func _update_gesture_timer():
 		elif (_t - _g_t0) > _g_dur:
 			_gesture = ""
 			_g_hold = false
-	# micro-gestos aleatórios suaves e espaçados (sem sobressaltos ou movimentos bruscos)
-	if _gesture == "" and nivel != "desligado" and _life == IDLE and _t > _next_micro:
-		var pool = ["inclinar", "concordar", "ombros"]
-		var esc = 0.25 if nivel == "expressivo" else 0.16
-		play_gesture(pool[randi() % pool.size()], esc)
-		var t_min = 25.0 if nivel == "expressivo" else 35.0
-		var t_max = 45.0 if nivel == "expressivo" else 65.0
-		_next_micro = _t + randf_range(t_min, t_max)
+	# No modo IDLE (parado), NUNCA dispara gestos aleatórios forçados como dar de ombros ("ombros")
+	# ou concordar pro nada ("concordar"). Só quando em modo "expressivo", a cada 50–85s faz uma
+	# inclinação de cabeça muito sutil (escala 0.10).
+	if _gesture == "" and nivel == "expressivo" and _life == IDLE and _t > _next_micro:
+		play_gesture("inclinar", 0.10)
+		_next_micro = _t + randf_range(50.0, 85.0)
 	elif _next_micro < _t:
-		_next_micro = _t + randf_range(20.0, 35.0)
+		_next_micro = _t + randf_range(45.0, 75.0)
 
 
 # ---------------------------------------------------------------- rosto
@@ -672,16 +670,16 @@ func _arm_targets(side: float, pre: String) -> Array:
 	var t_up: Vector3
 	var t_lo: Vector3
 	if bracos_naturais:
-		# respiração/ruído bem leves nos braços
-		var br = sin(_t * 1.3) * 0.012
-		var sway = sin(_t * 0.43 + side) * 0.018
-		t_up = _dir(0.17 + sway, -0.98, 0.05 + br, side)
-		t_lo = _dir(0.06 + sway * 0.5, -0.93, 0.32 + br, side)
+		# respiração/ruído bem leves e orgânicos nos braços
+		var br = sin(_t * 1.15) * 0.008
+		var sway = sin(_t * 0.36 + side) * 0.011
+		t_up = _dir(0.16 + sway, -0.98, 0.05 + br, side)
+		t_lo = _dir(0.05 + sway * 0.4, -0.94, 0.30 + br, side)
 		if _life == SPEAKING and nivel != "desligado":
-			# gesticulação leve do braço direito ao falar
+			# gesticulação sutil e fluida do braço direito ao falar
 			if side > 0.0:
-				var k = 0.5 + 0.5 * sin(_t * 2.1)
-				t_lo = _dir(0.04 - 0.1 * k, -0.62 + 0.45 * k, 0.55, side)
+				var k = 0.5 + 0.5 * sin(_t * 1.55)
+				t_lo = _dir(0.04 - 0.06 * k, -0.76 + 0.24 * k, 0.44, side)
 	else:
 		t_up = _rest_dir.get(pre + "upper", _dir(1.0, 0.0, 0.0, side))
 		t_lo = _rest_dir.get(pre + "lower", _dir(1.0, 0.0, 0.0, side))
@@ -716,39 +714,39 @@ func _gesture_t() -> float:
 func _gesture_arm(side: float, gt: float) -> Array:
 	if _gesture == "" or gt < 0.0:
 		return []
-	var e = _envelope(gt, _g_dur) * minf(_g_scale, 1.3)
+	var e = _envelope(gt, _g_dur, 0.65, 0.75) * minf(_g_scale, 1.15)
 	e = clampf(e, 0.0, 1.0)
 	match _gesture:
 		"acenar":
 			if side > 0.0:
-				var osc = sin(gt * 11.0) * 0.55
-				return [e, _dir(0.72, 0.62, 0.20, side), _dir(0.25 + osc, 0.92, 0.15, side)]
+				var osc = sin(gt * 8.5) * 0.42
+				return [e, _dir(0.66, 0.58, 0.22, side), _dir(0.22 + osc, 0.90, 0.16, side)]
 		"comemorar":
-			return [e, _dir(0.55, 0.85, 0.10, side), _dir(0.20 + sin(gt * 9.0) * 0.15, 1.0, 0.10, side)]
+			return [e, _dir(0.50, 0.80, 0.12, side), _dir(0.18 + sin(gt * 7.5) * 0.12, 0.96, 0.12, side)]
 		"ombros":
-			return [e, _dir(0.48, -0.82, 0.12, side), _dir(0.80, -0.15, 0.45, side)]
+			return [e * 0.65, _dir(0.32, -0.88, 0.14, side), _dir(0.46, -0.36, 0.42, side)]
 		"pensar":
 			if side > 0.0:
-				return [e, _dir(0.06, -0.48, 0.46, side), _dir(-0.22, 0.70, 0.48, side)]
+				return [e * 0.85, _dir(0.06, -0.54, 0.42, side), _dir(-0.18, 0.62, 0.46, side)]
 		"reverencia":
-			return [e * 0.7, _dir(0.10, -0.98, 0.25, side), _dir(0.0, -0.80, 0.55, side)]
+			return [e * 0.65, _dir(0.10, -0.98, 0.25, side), _dir(0.0, -0.80, 0.52, side)]
 	return []
 
 
 func _update_arms(delta: float):
 	if not (bracos_naturais or _gesture != "" or _arms_touched or _mov.has("braco_dir") or _mov.has("braco_esq")):
 		return
-	var k = 1.0 - exp(-delta * 5.0)
-	# ombros primeiro (os braços são filhos deles): levantam em "ombros", senão ficam no repouso
+	var k = 1.0 - exp(-delta * 4.0)
+	# ombros primeiro (os braços são filhos deles): levantam suavemente em "ombros", senão ficam no repouso
 	var lift = 0.0
 	if _gesture == "ombros":
-		lift = _envelope(_gesture_t(), _g_dur)
+		lift = _envelope(_gesture_t(), _g_dur, 0.60, 0.70) * minf(_g_scale, 1.0)
 	if lift > 0.001 or _shoulders_touched:
 		for pre0 in ["r_", "l_"]:
 			var key_sh = pre0 + "shoulder"
 			if _has(key_sh) and _has(pre0 + "upper") and _rest_dir.has(key_sh):
-				var alvo_sh: Vector3 = (_rest_dir[key_sh] + _up * (0.35 * lift)).normalized()
-				_aim(int(_bones[key_sh]), int(_bones[pre0 + "upper"]), alvo_sh, 1.0 - exp(-delta * 10.0))
+				var alvo_sh: Vector3 = (_rest_dir[key_sh] + _up * (0.16 * lift)).normalized()
+				_aim(int(_bones[key_sh]), int(_bones[pre0 + "upper"]), alvo_sh, 1.0 - exp(-delta * 6.0))
 				_shoulders_touched = true
 	for pre in ["r_", "l_"]:
 		var side = 1.0 if pre == "r_" else -1.0
@@ -757,7 +755,7 @@ func _update_arms(delta: float):
 		var tg = _arm_targets(side, pre)
 		var kk = k
 		if _gesture == "acenar" or _gesture == "comemorar" or _mov.has("braco_dir") or _mov.has("braco_esq"):
-			kk = 1.0 - exp(-delta * 7.5)          # gesto/movimento: transição suave e orgânica
+			kk = 1.0 - exp(-delta * 6.0)          # gesto/movimento: transição suave e orgânica
 		_aim(int(_bones[pre + "upper"]), int(_bones[pre + "lower"]), tg[0], kk)
 		if _has(pre + "hand"):
 			_aim(int(_bones[pre + "lower"]), int(_bones[pre + "hand"]), tg[1], kk)
@@ -765,16 +763,16 @@ func _update_arms(delta: float):
 
 
 func _update_posture(delta: float):
-	# respiração/balanço do tronco, mais "vivo" que só o osso do peito da base
+	# respiração/balanço do tronco bem calmo e orgânico
 	var sp = int(_bones.get("spine", -1))
 	if sp != -1:
-		var roll = sin(_t * 0.53) * 0.010 + sin(_t * 1.3) * 0.004
-		var pitch = sin(_t * 0.37 + 1.0) * 0.008
+		var roll = sin(_t * 0.42) * 0.006 + sin(_t * 1.15) * 0.0025
+		var pitch = sin(_t * 0.32 + 1.0) * 0.005
 		var extra_pitch = 0.0
 		if _rest_rot.has("spine"):
 			skeleton.set_bone_pose_rotation(sp, _rest_rot["spine"])     # absoluto: sem acumular
 		if _gesture == "reverencia":
-			extra_pitch = 0.42 * _envelope(_gesture_t(), _g_dur, 0.5, 0.6)
+			extra_pitch = 0.36 * _envelope(_gesture_t(), _g_dur, 0.55, 0.65)
 		_rotate_global(sp, Quaternion(_fwd, roll) * Quaternion(_lat, (pitch + extra_pitch) * _pitch_sign))
 
 
@@ -786,31 +784,31 @@ func _update_head_extras(delta: float):
 	var gt = _gesture_t()
 	var e = 0.0
 	if _gesture != "":
-		e = clampf(_envelope(gt, _g_dur) * minf(_g_scale, 1.3), 0.0, 1.0)
+		e = clampf(_envelope(gt, _g_dur, 0.60, 0.70) * minf(_g_scale, 1.15), 0.0, 1.0)
 	var yaw = 0.0      # + = para a direita do personagem
 	var pitch = 0.0    # + = baixar a cabeça
 	var roll = 0.0
 
 	match _gesture:
 		"concordar":
-			pitch = 0.20 * sin(gt * TAU * 1.7) * e
+			pitch = 0.14 * sin(gt * TAU * 1.4) * e
 		"negar":
-			yaw = 0.30 * sin(gt * TAU * 2.0) * e
+			yaw = 0.20 * sin(gt * TAU * 1.6) * e
 		"inclinar":
-			roll = 0.20 * e
-			pitch = -0.04 * e
+			roll = 0.12 * e
+			pitch = -0.025 * e
 		"pensar":
-			roll = 0.08 * e
-			pitch = -0.04 * e
-			yaw = -0.07 * e
+			roll = 0.065 * e
+			pitch = -0.035 * e
+			yaw = -0.055 * e
 		"ombros":
-			roll = 0.12 * sin(gt * TAU * 0.6) * e
+			roll = 0.08 * sin(gt * TAU * 0.5) * e
 		"reverencia":
-			pitch = 0.20 * e
+			pitch = 0.16 * e
 		"acenar":
-			roll = 0.08 * e
+			roll = 0.06 * e
 		"comemorar":
-			pitch = -0.10 * e
+			pitch = -0.07 * e
 
 	# v1.6 — cabeça de um MOVIMENTO (graus nos dados): soma ao gesto, com o envelope do clipe
 	if _mov.has("cabeca_pitch") or _mov.has("cabeca_yaw") or _mov.has("cabeca_roll"):
@@ -821,30 +819,27 @@ func _update_head_extras(delta: float):
 
 	# ao falar: cabeça acompanha o ritmo, bem de leve
 	if _life == SPEAKING:
-		pitch += 0.025 * sin(_t * 2.6) + 0.015 * sin(_t * 4.3 + 1.2)
-		yaw += 0.02 * sin(_t * 1.7)
+		pitch += 0.018 * sin(_t * 2.2) + 0.010 * sin(_t * 3.6 + 1.2)
+		yaw += 0.015 * sin(_t * 1.4)
 
-	# olhar o mouse (cabeça + pescoço), suavizado
+	# olhar o mouse (cabeça + pescoço), suavizado (desativado no Android para não puxar a cabeça em toques do teclado)
 	var alvo_yaw = 0.0
 	var alvo_pitch = 0.0
-	if olhar_mouse:
+	if olhar_mouse and OS.get_name() != "Android":
 		var m = DisplayServer.mouse_get_position()
 		var wp = DisplayServer.window_get_position()
 		var ws = DisplayServer.window_get_size()
 		var c = Vector2(wp.x + ws.x * 0.5, wp.y + ws.y * 0.3)
 		var nx = clampf((float(m.x) - c.x) / 900.0, -1.0, 1.0)
 		var ny = clampf((float(m.y) - c.y) / 600.0, -1.0, 1.0)
-		# v21: zona morta no meio (cursor perto = não fica "tremendo" atrás do mouse) e amplitude menor
-		# (a cabeça virava/baixava demais quando o mouse estava longe, em outro monitor, por exemplo)
-		if absf(nx) < 0.10:
+		if absf(nx) < 0.12:
 			nx = 0.0
-		if absf(ny) < 0.10:
+		if absf(ny) < 0.12:
 			ny = 0.0
-		var amp = 0.36 if nivel == "expressivo" else 0.26
-		# mouse à direita da tela = lado ESQUERDO do personagem (ele está de frente pra nós)
+		var amp = 0.26 if nivel == "expressivo" else 0.18
 		alvo_yaw = -nx * amp
-		alvo_pitch = ny * 0.12
-	var kl = 1.0 - exp(-delta * 3.0)
+		alvo_pitch = ny * 0.09
+	var kl = 1.0 - exp(-delta * 2.2)
 	_look_yaw = lerpf(_look_yaw, alvo_yaw, kl)
 	_look_pitch = lerpf(_look_pitch, alvo_pitch, kl)
 

@@ -214,6 +214,15 @@ func _on_ui_tema(paleta: Dictionary):
 		_add_bubble("🎨 Tema novo salvo. Feche e abra o Zenith pra ver as cores.", "ai")
 
 func _ready():
+	if OS.get_name() == "Android" or OS.get_cmdline_user_args().has("--layout-celular"):
+		borderless = true
+		unresizable = true
+		min_size = Vector2i(180, 180)
+		position = Vector2i(0, 0)
+		if get_tree() and get_tree().root:
+			var rsz: Vector2 = get_tree().root.get_visible_rect().size
+			if rsz.x > 0 and rsz.y > 0:
+				size = Vector2i(int(round(rsz.x)), int(round(rsz.y)))
 	_tema_carregar_local()   # v25: antes de montar qualquer botão/painel
 	aparencia = Aparencia.new()   # v1.1: motor de aparência (precisa existir ANTES de montar as áreas)
 	aparencia.name = "Aparencia"
@@ -249,7 +258,7 @@ func _ready():
 	# v13 — pré-carrega/verifica os avatares do projeto assim que a UI existe
 	call_deferred("_iniciar_pre_carregamento_avatares", false)
 	_aplicar_layout_celular()      # v1.12 (port celular): só no Android (ou com --layout-celular); no PC nada muda
-	call_deferred("_build_animated_splash")
+	_build_animated_splash()
 
 
 # NOVO v10 — única função _process() deste script, de propósito (o
@@ -350,7 +359,10 @@ func _hide_overlay(overlay: Control):
 	if card is Control:
 		card.pivot_offset = card.size / 2.0
 		tween.tween_property(card, "scale", Vector2(0.92, 0.92), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tween.chain().tween_callback(func(): overlay.visible = false)
+	tween.chain().tween_callback(func():
+		overlay.visible = false
+		if layout_celular != null and layout_celular.has_method("ao_esconder_overlay"):
+			layout_celular.ao_esconder_overlay(overlay))
 
 
 func _connect_brain_signals():
@@ -507,6 +519,10 @@ func _build_root():
 # monitor "dono" da janela). Empurra a janela inteira pro monitor onde
 # está o seu centro, sem sair "no meio" de dois.
 func _clamp_no_monitor() -> void:
+	if OS.get_name() == "Android" or layout_celular != null or OS.get_cmdline_user_args().has("--layout-celular"):
+		if _raiz_ui != null and is_instance_valid(_raiz_ui):
+			_raiz_ui.offset_bottom = 0.0
+		return
 	var s = size
 	if s.x <= 0 or s.y <= 0:
 		return
@@ -5491,7 +5507,7 @@ func _build_programacao_overlay() -> Control:
 	return overlay
 
 
-# ================= ABERTURA ANIMADA (SPLASH SCREEN RESPONSIVA) =================
+# ================= ABERTURA ANIMADA (FIEL AO PRINT ORIGINAL + ANIMAÇÃO VIVA) =================
 func _build_animated_splash() -> void:
 	if _raiz_ui == null or not is_instance_valid(_raiz_ui):
 		return
@@ -5500,9 +5516,10 @@ func _build_animated_splash() -> void:
 	splash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	splash.mouse_filter = Control.MOUSE_FILTER_STOP
 	
+	# Fundo idêntico ao tom original da splash (#0c0d0f) preenchendo 100% de qualquer celular/PC
 	var bg := ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.047, 0.055, 0.065, 1.0)
+	bg.color = Color(0.047, 0.051, 0.059, 1.0)
 	splash.add_child(bg)
 	
 	var center := CenterContainer.new()
@@ -5511,84 +5528,136 @@ func _build_animated_splash() -> void:
 	
 	var vb := VBoxContainer.new()
 	vb.alignment = BoxContainer.ALIGNMENT_CENTER
-	vb.add_theme_constant_override("separation", 18)
+	vb.add_theme_constant_override("separation", 22)
 	center.add_child(vb)
 	
-	# Logo Container com anel e glow cibernético
-	var logo_panel := PanelContainer.new()
-	logo_panel.custom_minimum_size = Vector2(130, 130)
-	var sb_logo := StyleBoxFlat.new()
-	sb_logo.bg_color = Color(0.08, 0.11, 0.14, 0.95)
-	sb_logo.border_color = Color(0.0, 0.95, 0.75, 0.85) # Glowing Emerald/Cyan
-	sb_logo.set_border_width_all(2)
-	sb_logo.set_corner_radius_all(32)
-	sb_logo.shadow_color = Color(0.0, 0.95, 0.75, 0.35)
-	sb_logo.shadow_size = 24
-	logo_panel.add_theme_stylebox_override("panel", sb_logo)
+	# Palco central do ícone com aura esmeralda animada e anel orbital (sem borda quadrada feia)
+	var palco_logo := Control.new()
+	palco_logo.custom_minimum_size = Vector2(220, 220)
+	palco_logo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vb.add_child(palco_logo)
 	
-	var logo_margin := MarginContainer.new()
-	for s in ["left", "right", "top", "bottom"]:
-		logo_margin.add_theme_constant_override("margin_" + s, 12)
-	logo_panel.add_child(logo_margin)
+	var aura := Panel.new()
+	aura.size = Vector2(210, 210)
+	aura.position = Vector2(5, 5)
+	aura.pivot_offset = Vector2(105, 105)
+	var sb_aura := StyleBoxFlat.new()
+	sb_aura.bg_color = Color(0.07, 0.17, 0.16, 0.24)
+	sb_aura.set_corner_radius_all(105)
+	sb_aura.shadow_color = Color(0.12, 0.34, 0.30, 0.45)
+	sb_aura.shadow_size = 54
+	aura.add_theme_stylebox_override("panel", sb_aura)
+	palco_logo.add_child(aura)
+	
+	var anel := Panel.new()
+	anel.size = Vector2(216, 216)
+	anel.position = Vector2(2, 2)
+	anel.pivot_offset = Vector2(108, 108)
+	var sb_anel := StyleBoxFlat.new()
+	sb_anel.bg_color = Color(0, 0, 0, 0)
+	sb_anel.border_color = Color(0.45, 0.84, 0.76, 0.28)
+	sb_anel.border_width_top = 2
+	sb_anel.border_width_bottom = 2
+	sb_anel.set_corner_radius_all(108)
+	anel.add_theme_stylebox_override("panel", sb_anel)
+	palco_logo.add_child(anel)
 	
 	var logo_rect := TextureRect.new()
 	logo_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	var splash_tex = load("res://assets/zenith_splash.png")
-	if splash_tex is Texture2D:
-		logo_rect.texture = splash_tex
-	logo_margin.add_child(logo_rect)
+	logo_rect.size = Vector2(196, 196)
+	logo_rect.position = Vector2(12, 12)
+	logo_rect.pivot_offset = Vector2(98, 98)
+	var icon_tex = load("res://icon.png")
+	if icon_tex is Texture2D:
+		logo_rect.texture = icon_tex
+	palco_logo.add_child(logo_rect)
 	
-	var logo_center := CenterContainer.new()
-	logo_center.add_child(logo_panel)
-	vb.add_child(logo_center)
-	
-	# Título "Seja bem-vindo"
+	# Título "Seja bem-vindo" no tom creme quente original do print
 	var lbl_welcome := Label.new()
 	lbl_welcome.text = "Seja bem-vindo"
 	lbl_welcome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl_welcome.add_theme_font_size_override("font_size", 24)
-	lbl_welcome.add_theme_color_override("font_color", Color(0.95, 0.96, 0.98))
+	lbl_welcome.add_theme_color_override("font_color", Color(0.94, 0.89, 0.83, 1.0))
 	vb.add_child(lbl_welcome)
 	
-	# Subtítulo "ZENITH · VERSÃO 1.0"
-	var lbl_sub := Label.new()
-	lbl_sub.text = "ZENITH · VERSÃO 1.0"
-	lbl_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl_sub.add_theme_font_size_override("font_size", 13)
-	lbl_sub.add_theme_color_override("font_color", Color(0.0, 0.90, 0.72))
-	vb.add_child(lbl_sub)
+	# Rodapé fixado na parte inferior (responsivo a qualquer altura de tela)
+	var rodape_box := VBoxContainer.new()
+	rodape_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	rodape_box.add_theme_constant_override("separation", 10)
+	rodape_box.anchor_left = 0.0
+	rodape_box.anchor_right = 1.0
+	rodape_box.anchor_top = 0.83
+	rodape_box.anchor_bottom = 0.92
+	splash.add_child(rodape_box)
 	
-	# Status com pontinhos animados
+	var barra_center := CenterContainer.new()
+	rodape_box.add_child(barra_center)
+	var barra_bg := Panel.new()
+	barra_bg.custom_minimum_size = Vector2(140, 3)
+	barra_bg.size = Vector2(140, 3)
+	var sb_bbg := StyleBoxFlat.new()
+	sb_bbg.bg_color = Color(0.10, 0.15, 0.16, 0.85)
+	sb_bbg.set_corner_radius_all(2)
+	barra_bg.add_theme_stylebox_override("panel", sb_bbg)
+	barra_center.add_child(barra_bg)
+	
+	var barra_fill := Panel.new()
+	barra_fill.size = Vector2(12, 3)
+	var sb_bfill := StyleBoxFlat.new()
+	sb_bfill.bg_color = Color(0.52, 0.88, 0.80, 0.95)
+	sb_bfill.set_corner_radius_all(2)
+	sb_bfill.shadow_color = Color(0.45, 0.85, 0.76, 0.45)
+	sb_bfill.shadow_size = 6
+	barra_fill.add_theme_stylebox_override("panel", sb_bfill)
+	barra_bg.add_child(barra_fill)
+	
 	var lbl_status := Label.new()
 	lbl_status.name = "StatusLabel"
-	lbl_status.text = "iniciando sistemas..."
+	lbl_status.text = "iniciando..."
 	lbl_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl_status.add_theme_font_size_override("font_size", 12)
-	lbl_status.add_theme_color_override("font_color", Color(0.55, 0.62, 0.70))
-	vb.add_child(lbl_status)
+	lbl_status.add_theme_font_size_override("font_size", 13)
+	lbl_status.add_theme_color_override("font_color", Color(0.57, 0.64, 0.63, 1.0))
+	rodape_box.add_child(lbl_status)
 	
 	_raiz_ui.add_child(splash)
 	
-	# Animação de respiração do logo
-	logo_panel.pivot_offset = Vector2(65, 65)
-	var tw_pulse := logo_panel.create_tween().set_loops()
-	tw_pulse.tween_property(logo_panel, "scale", Vector2(1.05, 1.05), 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw_pulse.tween_property(logo_panel, "scale", Vector2(0.96, 0.96), 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# 1) Animação de entrada elástica do ícone e do texto "Seja bem-vindo"
+	logo_rect.scale = Vector2(0.72, 0.72)
+	logo_rect.modulate.a = 0.0
+	lbl_welcome.modulate.a = 0.0
+	rodape_box.modulate.a = 0.0
+	var tw_in := splash.create_tween().set_parallel(true)
+	tw_in.tween_property(logo_rect, "scale", Vector2(1.0, 1.0), 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw_in.tween_property(logo_rect, "modulate:a", 1.0, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw_in.tween_property(lbl_welcome, "modulate:a", 1.0, 0.45).set_delay(0.15).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw_in.tween_property(rodape_box, "modulate:a", 1.0, 0.45).set_delay(0.22)
+	tw_in.tween_property(barra_fill, "size:x", 140.0, 1.65).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	
-	# Animação dos pontinhos de carregamento
+	# 2) Movimento contínuo de flutuação suave do ícone + rotação do anel orbital + pulsação da aura
+	var tw_float := logo_rect.create_tween().set_loops()
+	tw_float.tween_property(logo_rect, "position:y", 6.0, 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw_float.tween_property(logo_rect, "position:y", 18.0, 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	
+	var tw_aura := aura.create_tween().set_loops().set_parallel(true)
+	tw_aura.tween_property(aura, "scale", Vector2(1.14, 1.14), 0.90).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw_aura.tween_property(anel, "rotation", TAU, 2.6).from(0.0)
+	tw_aura.chain().tween_property(aura, "scale", Vector2(0.92, 0.92), 0.90).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	
+	# 3) Animação dos pontinhos "iniciando..."
 	var tw_dots := lbl_status.create_tween().set_loops()
-	tw_dots.tween_callback(func(): lbl_status.text = "iniciando sistemas.")
-	tw_dots.tween_interval(0.3)
-	tw_dots.tween_callback(func(): lbl_status.text = "iniciando sistemas..")
-	tw_dots.tween_interval(0.3)
-	tw_dots.tween_callback(func(): lbl_status.text = "iniciando sistemas...")
-	tw_dots.tween_interval(0.3)
+	tw_dots.tween_callback(func(): lbl_status.text = "iniciando.")
+	tw_dots.tween_interval(0.28)
+	tw_dots.tween_callback(func(): lbl_status.text = "iniciando..")
+	tw_dots.tween_interval(0.28)
+	tw_dots.tween_callback(func(): lbl_status.text = "iniciando...")
+	tw_dots.tween_interval(0.32)
 	
-	# Transição suave de saída após 1.6 segundos
-	get_tree().create_timer(1.6).timeout.connect(func():
+	# 4) Transição cinematográfica de saída após 1.85 segundos
+	get_tree().create_timer(1.85).timeout.connect(func():
 		if is_instance_valid(splash):
+			splash.pivot_offset = splash.size / 2.0
 			var tw_out := splash.create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-			tw_out.tween_property(splash, "modulate:a", 0.0, 0.5)
-			tw_out.tween_property(splash, "scale", Vector2(1.03, 1.03), 0.5)
+			tw_out.tween_property(splash, "modulate:a", 0.0, 0.45)
+			tw_out.tween_property(splash, "scale", Vector2(1.05, 1.05), 0.45)
 			tw_out.chain().tween_callback(splash.queue_free))

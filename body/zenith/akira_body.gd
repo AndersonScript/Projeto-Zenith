@@ -30,7 +30,8 @@ var _vrm_gltf_extension: GLTFDocumentExtension = null
 
 var target_head_rot: Vector3 = Vector3.ZERO
 var current_head_rot: Vector3 = Vector3.ZERO
-var next_head_change_time: float = 0.0
+var _smooth_head_rot: Vector3 = Vector3.ZERO
+var next_head_change_time: float = 4.0
 
 var next_blink_time: float = 3.0
 var is_blinking: bool = false
@@ -304,10 +305,16 @@ func _ready():
 	# O posicionamento por monitor vira uma função À PARTE, chamada com
 	# `call_deferred()` — só ELA espera os frames necessários pra "Central
 	# de Controle" existir; o resto do _ready() roda na hora, síncrono.
-	if OS.get_name() == "Android":
-		# Otimização móvel para evitar superaquecimento e poupar bateria
-		Engine.max_fps = 45
-		RenderingServer.viewport_set_msaa_3d(get_viewport().get_viewport_rid(), RenderingServer.VIEWPORT_MSAA_DISABLED)
+	if OS.get_name() == "Android" or ("--layout-celular" in OS.get_cmdline_user_args()):
+		# Otimização móvel: desativa a câmera 3D do fundo raiz desde o frame 0 para NUNCA vazar
+		# a VRM por baixo/cima da interface (o avatar no celular é renderizado no AvatarSubViewport).
+		if OS.get_name() == "Android":
+			Engine.max_fps = 45
+			RenderingServer.viewport_set_msaa_3d(get_viewport().get_viewport_rid(), RenderingServer.VIEWPORT_MSAA_DISABLED)
+		var cam_raiz = get_node_or_null("Camera3D")
+		if cam_raiz is Camera3D:
+			_op_main_cam = cam_raiz
+			cam_raiz.cull_mask = 0
 	else:
 		_posicionar_janela_avatar.call_deferred()
 
@@ -386,7 +393,7 @@ func _process(delta):
 	# 		skeleton.set_bone_pose_rotation(right_arm_id, _right_arm_rest_target)
 	
 	# RESPIRAÇÃO — natural, sutil e sem fazer o personagem flutuar do chão
-	var state_breath_mult = 1.3 if life_state == LifeState.THINKING else (1.1 if life_state == LifeState.SPEAKING else 1.0)
+	var state_breath_mult = 1.2 if life_state == LifeState.THINKING else (1.08 if life_state == LifeState.SPEAKING else 1.0)
 	position.y = base_y
 	var av_respiro = get_node_or_null("Akira")
 	if av_respiro != null and _vrm_anchor_ready and not (_mov != null and _mov.ativo()):
@@ -394,37 +401,35 @@ func _process(delta):
 		av_respiro.position.y = _vrm_anchor_pos_y + _vrm_manual_offset.y
 	if chest_id != -1 and skeleton:
 		var rest_pose = skeleton.get_bone_rest(chest_id).basis.get_rotation_quaternion()
-		var breath_chest = Quaternion(Vector3(1, 0, 0), sin(time * breath_speed * state_breath_mult) * 0.035)
+		var breath_chest = Quaternion(Vector3(1, 0, 0), sin(time * breath_speed * state_breath_mult) * 0.022)
 		skeleton.set_bone_pose_rotation(chest_id, rest_pose * breath_chest)
 
-	# BALANÇO DE PESO — troca de perna de apoio bem lenta, quase
-	# imperceptível, mas é o detalhe que impede a pose de parecer "travada
-	# em pé feito estátua". Praticamente pausa durante THINKING (foco).
+	# BALANÇO DE PESO — troca de perna de apoio bem lenta e orgânica, quase
+	# imperceptível, impedindo a pose de parecer estátua sem balançar demais.
 	if hips_id != -1 and skeleton:
-		var sway_amount = 0.0 if life_state == LifeState.THINKING else 0.035
+		var sway_amount = 0.005 if life_state == LifeState.THINKING else 0.015
 		var hips_rest = skeleton.get_bone_rest(hips_id).basis.get_rotation_quaternion()
-		var sway = Quaternion(Vector3(0, 0, 1), sin(time * 0.45) * sway_amount)
+		var sway = Quaternion(Vector3(0, 0, 1), sin(time * 0.35) * sway_amount)
 		skeleton.set_bone_pose_rotation(hips_id, hips_rest * sway)
 
-	# CABEÇA — olhar errante na maior parte do tempo; na THINKING, olha
-	# mais pra cima/de lado com pausas mais longas (typico de "pensando");
-	# na SPEAKING, movimentos um pouco mais frequentes/vivos.
+	# CABEÇA — movimento calmo, contínuo e com dupla suavização (sem trancos ou movimentos aleatórios bruscos)
 	if time > next_head_change_time:
 		match life_state:
 			LifeState.THINKING:
-				target_head_rot = Vector3(randf_range(-0.02, 0.12), randf_range(-0.15, 0.15), 0.0)
-				next_head_change_time = time + randf_range(1.5, 3.0)
+				target_head_rot = Vector3(randf_range(-0.02, 0.07), randf_range(-0.08, 0.08), 0.0)
+				next_head_change_time = time + randf_range(2.2, 4.0)
 			LifeState.SPEAKING:
-				target_head_rot = Vector3(randf_range(-0.06, 0.06), randf_range(-0.1, 0.1), 0.0)
-				next_head_change_time = time + randf_range(1.2, 2.5)
+				target_head_rot = Vector3(randf_range(-0.04, 0.04), randf_range(-0.07, 0.07), 0.0)
+				next_head_change_time = time + randf_range(1.6, 3.2)
 			_:
-				target_head_rot = Vector3(randf_range(-0.05, 0.05), randf_range(-0.08, 0.08), 0.0)
-				next_head_change_time = time + randf_range(5.0, 12.0)
+				target_head_rot = Vector3(randf_range(-0.025, 0.025), randf_range(-0.045, 0.045), 0.0)
+				next_head_change_time = time + randf_range(7.0, 14.0)
 
-	current_head_rot = current_head_rot.lerp(target_head_rot, delta * head_look_speed)
+	current_head_rot = current_head_rot.lerp(target_head_rot, 1.0 - exp(-delta * 1.4))
+	_smooth_head_rot = _smooth_head_rot.lerp(current_head_rot, 1.0 - exp(-delta * 2.2))
 	if neck_id != -1 and skeleton:
 		var neck_rest = skeleton.get_bone_rest(neck_id).basis.get_rotation_quaternion()
-		var look_quat = Quaternion.from_euler(current_head_rot)
+		var look_quat = Quaternion.from_euler(_smooth_head_rot)
 		skeleton.set_bone_pose_rotation(neck_id, neck_rest * look_quat)
 
 	_process_blink(delta)
@@ -603,15 +608,17 @@ func _update_transparency():
 
 func obter_textura_avatar() -> Texture2D:
 	if _op_sub == null or not is_instance_valid(_op_sub):
-		var main_cam = get_viewport().get_camera_3d() if get_viewport() else null
+		var main_cam = get_node_or_null("Camera3D")
+		if main_cam == null and get_viewport():
+			main_cam = get_viewport().get_camera_3d()
 		_op_sub = SubViewport.new()
 		_op_sub.name = "AvatarSubViewport"
 		_op_sub.transparent_bg = true
 		_op_sub.disable_3d = false
 		_op_sub.gui_disable_input = true
 		_op_sub.handle_input_locally = false
-		_op_sub.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
-		_op_sub.size = Vector2i(240, 360) if OS.get_name() == "Android" else Vector2i(320, 480)
+		_op_sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		_op_sub.size = Vector2i(280, 380) if OS.get_name() == "Android" else Vector2i(320, 480)
 		add_child(_op_sub)
 		_op_cam = Camera3D.new()
 		_op_cam.name = "AvatarSubCam"
@@ -627,6 +634,14 @@ func obter_textura_avatar() -> Texture2D:
 			_op_cam.keep_aspect = main_cam.keep_aspect
 			_op_cam.global_transform = main_cam.global_transform
 	return _op_sub.get_texture()
+
+func ajustar_subviewport_avatar(tam: Vector2i, ativo: bool = true) -> void:
+	if _op_sub == null or not is_instance_valid(_op_sub):
+		obter_textura_avatar()
+	if _op_sub != null and is_instance_valid(_op_sub):
+		if tam.x >= 64 and tam.y >= 64 and _op_sub.size != tam:
+			_op_sub.size = tam
+		_op_sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS if ativo else SubViewport.UPDATE_DISABLED
 
 func _opacidade_ligar():
 	var main_cam = get_viewport().get_camera_3d()

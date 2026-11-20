@@ -13,12 +13,12 @@
     },
     {
       "source": "/apk",
-      "destination": "/Zenith.apk",
+      "destination": "/Zenith.apk?v=1.26",
       "permanent": false
     },
     {
       "source": "/android",
-      "destination": "/Zenith.apk",
+      "destination": "/Zenith.apk?v=1.26",
       "permanent": false
     },
     {

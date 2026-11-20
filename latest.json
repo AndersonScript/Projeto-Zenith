@@ -32,12 +32,12 @@
     "tamanho": 12782131
   },
   "android": {
-    "versao": "1.25",
+    "versao": "1.26",
     "arquivo": "Zenith.apk",
-    "url": "https://projeto-zenith-five.vercel.app/Zenith.apk",
-    "sha256": "28a95a0989c81e7c84ccf0c6bc064280540e4b1fdf5add9feb9ed4d36594165d",
-    "tamanho": 46896606,
-    "notas": "Zenith v1.25: Avatar oficial Zenith 1.0 exclusivo, reenquadramento mobile perfeito sem vazamento de malha 3D, botao centralizado, animacao tatil e fluida nos botoes e janelas, correcao de fallback de IA Gemini e otimizacao de temperatura/bateria."
+    "url": "https://projeto-zenith-five.vercel.app/Zenith.apk?v=1.26",
+    "sha256": "16e02a2dc4ded0a41dca66d0e73b6a76eaeb40d623e30f89d0935f2fb0048b9e",
+    "tamanho": 46904798,
+    "notas": "Zenith v1.26: Modo Meio (Palco 3D no topo estilo YouTube) + Modo Janelinha PiP (Miniplayer flutuante redimensionavel com imã de borda), adaptacao universal de tela sem vazamento 3D, splash animada fiel ao print original, movimentos 100% suaves sem gestos aleatorios forcados."
   },
   "vrm": {
     "versao": "1.0",
@@ -47,6 +47,6 @@
     "tamanho": 16383668,
     "notas": "Avatar 3D oficial humanoide VRM da Zenith criado pelo Anderson com textura personalizada esmeralda steampunk."
   },
-  "version": "1.25",
-  "notes": "Zenith v1.25: Avatar oficial Zenith 1.0 exclusivo, reenquadramento mobile perfeito sem vazamento 3D, botao Comecar centralizado, animacoes tateis com bounce nos botoes, correcao de API Gemini (2.0/1.5 fallback) e reducao drastica de temperatura mobile."
+  "version": "1.26",
+  "notes": "Zenith v1.26: Modo Meio (Palco 3D estilo YouTube) + Modo Janelinha PiP (Miniplayer redimensionavel), reenquadramento adaptativo sem vazamento 3D, splash animada fiel ao original, movimentos suaves sem dar de ombros aleatorio."
 }

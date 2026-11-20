@@ -31,15 +31,18 @@ var fracao_avatar: float = 0.35    # proporção da tela dedicada ao avatar (0.2
 var faixa_avatar := 0              # altura (px) da faixa do avatar, no alto
 var gaveta: Control = null
 var _escurecer: ColorRect = null
-var modo_layout: String = "flutuante" # "flutuante" (janela móvel) | "corpo_todo" (corpo cheio 3D) | "chat" (100% chat) | "topo" (faixa)
-var modo_avatar: String = "busto"    # mantido para compatibilidade
+var modo_layout: String = "meio"      # "meio" (palco topo estilo YouTube) | "flutuante" (janelinha PiP) | "corpo_todo" (palco amplo corpo cheio) | "chat" (100% chat)
+var modo_avatar: String = "busto"    # "busto" | "meio_corpo" | "corpo"
 var maximizado: bool = false         # true se o avatar está maximizado
 var _btn_modo_ref: Button = null
 var _btn_max_ref: Button = null
 var _cam_pos_base: Vector3 = Vector3.ZERO
 var _menu_btn: Button = null
 
-# Janela Flutuante Móvel (PiP) e Giro 3D
+# Palco Modo Meio (estilo YouTube) + Janelinha Flutuante Móvel (PiP) e Giro 3D
+var _palco_meio: PanelContainer = null
+var _textura_palco: TextureRect = null
+var _btn_zoom_palco: Button = null
 var _card_movel: PanelContainer = null
 var _textura_avatar: TextureRect = null
 var _bolha_avatar: Button = null
@@ -48,6 +51,7 @@ var _pos_toque_card: Vector2 = Vector2.ZERO
 var _arraste_giro: bool = false
 var _pos_toque_giro: Vector2 = Vector2.ZERO
 var _pos_card_flutuante: Vector2 = Vector2(-1, -1)
+var _tam_janelinha_idx: int = 1      # 0 = Compacta, 1 = Média, 2 = Grande
 
 func ativo() -> bool:
 	if OS.get_name() == "Android":
@@ -69,11 +73,22 @@ func _tamanho_da_tela() -> Vector2i:
 		var wsz = DisplayServer.window_get_size(0)
 		var wf = maxf(1.0, float(wsz.x))
 		var hf = maxf(1.0, float(wsz.y))
-		# Se o Android escalou com base no viewport de 420:
 		var log_w = 420
 		var log_h = int(round(420.0 * (hf / wf)))
 		return Vector2i(log_w, log_h)
 	return Vector2i(420, 840)
+
+# Quanto da borda do topo o sistema ocupa (câmera frontal / notch / barra de status).
+func _margem_topo() -> int:
+	if OS.get_name() != "Android":
+		return 0
+	var seguro: Rect2i = DisplayServer.get_display_safe_area()
+	var wsz = DisplayServer.window_get_size(0)
+	if seguro.size.y <= 0 or wsz.y <= 0:
+		return 0
+	var topo_px = maxi(0, seguro.position.y)
+	var escala = float(tela.y) / float(wsz.y)
+	return clampi(int(round(float(topo_px) * escala)), 0, 44)
 
 # Quanto da borda de baixo o sistema ocupa (barra de gestos). Convertido para escala lógica.
 func _margem_baixo() -> int:
@@ -86,7 +101,16 @@ func _margem_baixo() -> int:
 		return pad_min
 	var sobra_px = maxi(0, wsz.y - (seguro.position.y + seguro.size.y))
 	var escala = float(tela.y) / float(wsz.y)
-	return maxi(pad_min, int(round(float(sobra_px) * escala)))
+	return clampi(maxi(pad_min, int(round(float(sobra_px) * escala))), pad_min, 48)
+
+func _algum_overlay_aberto() -> bool:
+	if ui == null or not is_instance_valid(ui):
+		return false
+	var cartoes_checar = [ui.get("settings_overlay"), ui.get("approval_overlay"), ui.get("onboarding_overlay"), ui.get("memories_overlay"), ui.get("projetos_overlay"), ui.get("programacao_overlay")]
+	for c in cartoes_checar:
+		if c != null and is_instance_valid(c) and c.visible:
+			return true
+	return false
 
 # Chamado pela ui_manager NA HORA (antes do aplicar() adiado): textos e botões criados depois (listas, avisos) também são
 # ajustados. Se ligasse só no aplicar(), um cartão aberto antes dele (ex.: nos testes) escaparia.
@@ -100,10 +124,11 @@ func aplicar(janela) -> void:
 		return
 	tela = _tamanho_da_tela()
 	faixa_avatar = maxi(AVATAR_MIN, int(tela.y * fracao_avatar))
-	_posicionar_janela()
 	_esconder_o_que_e_de_pc()
 	_montar_gaveta()
-	_montar_card_flutuante.call_deferred()
+	_montar_palco_meio()
+	_montar_card_flutuante()
+	_posicionar_janela()
 	_configurar_toque_3d.call_deferred()
 	_enquadrar_avatar.call_deferred()
 	_iniciar_teclado()
@@ -137,139 +162,176 @@ func _ao_tamanho_mudou() -> void:
 	_posicionar_janela()
 	_enquadrar_avatar()
 
-func alternar_modo_layout() -> void:
-	match modo_layout:
-		"flutuante":
-			modo_layout = "corpo_todo"
-		"corpo_todo":
-			modo_layout = "chat"
-		"chat":
-			modo_layout = "topo"
-		"topo":
-			modo_layout = "flutuante"
-		_:
-			modo_layout = "flutuante"
+func definir_modo_layout(novo_modo: String) -> void:
+	modo_layout = novo_modo
+	if modo_layout == "corpo_todo":
+		modo_avatar = "corpo"
+	elif modo_layout == "flutuante":
+		modo_avatar = "busto"
 	_atualizar_botoes_modo()
 	_posicionar_janela()
 	_enquadrar_avatar()
 
+func alternar_modo_layout() -> void:
+	match modo_layout:
+		"meio", "topo":
+			definir_modo_layout("flutuante")
+		"flutuante":
+			definir_modo_layout("corpo_todo")
+		"corpo_todo":
+			definir_modo_layout("chat")
+		"chat":
+			definir_modo_layout("meio")
+		_:
+			definir_modo_layout("meio")
+
 func alternar_modo_avatar() -> void:
-	alternar_modo_layout()
+	match modo_avatar:
+		"busto":
+			modo_avatar = "meio_corpo"
+		"meio_corpo":
+			modo_avatar = "corpo"
+		_:
+			modo_avatar = "busto"
+	if _btn_zoom_palco != null and is_instance_valid(_btn_zoom_palco):
+		match modo_avatar:
+			"busto": _btn_zoom_palco.text = "🔍 Busto"
+			"meio_corpo": _btn_zoom_palco.text = "🔍 Meio"
+			"corpo": _btn_zoom_palco.text = "🔍 Corpo"
+	_enquadrar_avatar()
 
 func maximizar_avatar() -> void:
 	if modo_layout == "corpo_todo":
-		modo_layout = "flutuante"
+		definir_modo_layout("meio")
 	else:
-		modo_layout = "corpo_todo"
-	_atualizar_botoes_modo()
-	_posicionar_janela()
-	_enquadrar_avatar()
+		definir_modo_layout("corpo_todo")
 
 func _atualizar_botoes_modo() -> void:
 	if _btn_modo_ref != null and is_instance_valid(_btn_modo_ref):
 		match modo_layout:
+			"meio", "topo":
+				_btn_modo_ref.text = "📺 Meio"
+				_btn_modo_ref.tooltip_text = "Modo Meio (estilo YouTube): Palco 3D em cima e Chat embaixo. Toque para ir para Janelinha."
 			"flutuante":
-				_btn_modo_ref.text = "📱 Flutuante"
-				_btn_modo_ref.tooltip_text = "Modo: Janela Flutuante Móvel (mova com o dedo). Toque para alternar."
+				_btn_modo_ref.text = "📱 Janelinha"
+				_btn_modo_ref.tooltip_text = "Modo Janelinha (PiP estilo YouTube): Miniplayer flutuante móvel. Toque para alternar."
 			"corpo_todo":
-				_btn_modo_ref.text = "🧍 Corpo Cheio"
-				_btn_modo_ref.tooltip_text = "Modo: Corpo Cheio 3D (dos pés à cabeça). Toque para alternar."
+				_btn_modo_ref.text = "🧍 Corpo"
+				_btn_modo_ref.tooltip_text = "Modo Corpo Cheio: Palco expandido dos pés à cabeça. Toque para alternar."
 			"chat":
 				_btn_modo_ref.text = "💬 Só Chat"
-				_btn_modo_ref.tooltip_text = "Modo: 100% Chat (estilo Claude / ChatGPT). Toque para alternar."
-			"topo":
-				_btn_modo_ref.text = "🔲 No Topo"
-				_btn_modo_ref.tooltip_text = "Modo: Fixado no Topo. Toque para alternar."
+				_btn_modo_ref.tooltip_text = "Modo 100% Chat (avatar recolhido na bolha lateral). Toque para alternar."
 
 func _posicionar_janela() -> void:
 	if ui == null or not is_instance_valid(ui):
 		return
 	if ui.has_method("_clamp_no_monitor") and ui.size_changed.is_connected(ui._clamp_no_monitor):
 		ui.size_changed.disconnect(ui._clamp_no_monitor)
+	tela = _tamanho_da_tela()
 	ui.borderless = true
 	ui.unresizable = true
 	ui.min_size = Vector2i(180, 180)
 	var teclado: int = maxi(0, _teclado_px)
-	var root_h: int = int(ceil(ui.get_tree().root.get_visible_rect().size.y)) if (ui.get_tree() and ui.get_tree().root) else tela.y
-	var root_w: int = int(ceil(ui.get_tree().root.get_visible_rect().size.x)) if (ui.get_tree() and ui.get_tree().root) else tela.x
+	
+	# A janela da interface cobre SEMPRE 100% exatos da tela (0,0 até tela.x, tela.y) em todos os modos!
+	# Assim NUNCA sobra fresta embaixo ou em cima, NUNCA corta a caixa de digitar e NUNCA vaza a VRM de fundo!
+	ui.position = Vector2i(0, 0)
+	ui.size = Vector2i(tela.x, tela.y)
+	var raiz: Control = ui.get("_raiz_ui")
+	if raiz != null and is_instance_valid(raiz):
+		raiz.offset_left = 0.0
+		raiz.offset_top = 0.0
+		raiz.offset_right = 0.0
+		raiz.offset_bottom = 0.0
+	_ajustar_margem_inferior_mobile(teclado)
+	_ajustar_margem_superior_mobile()
+	
+	# A câmera 3D raiz fica sempre com cull_mask = 0 no celular (toda renderização 3D vai pelo AvatarSubViewport limpo)
 	var root_cam = ui.get_tree().root.get_camera_3d() if (ui.get_tree() and ui.get_tree().root) else null
+	if root_cam != null and is_instance_valid(root_cam):
+		root_cam.cull_mask = 0
+	var corpo = ui.get_parent()
+	var tem_overlay := _algum_overlay_aberto()
 	
 	match modo_layout:
-		"flutuante":
-			# Modo Janela Flutuante Móvel: Chat em tela cheia (como Claude / ChatGPT)
-			# Cobre 100% da tela para NUNCA vazar a VRM 3D por baixo:
-			ui.position = Vector2i(0, 0)
-			ui.size = Vector2i(maxi(tela.x, root_w), maxi(tela.y, root_h) + 120)
-			_ajustar_margem_inferior_mobile(teclado)
+		"meio", "topo":
+			var alt_palco: int = int(clampf(float(tela.y) * 0.34, 195.0, 310.0)) if teclado == 0 else 120
+			if _palco_meio != null and is_instance_valid(_palco_meio):
+				_palco_meio.visible = true
+				_palco_meio.custom_minimum_size.y = alt_palco
 			if _card_movel != null and is_instance_valid(_card_movel):
-				_card_movel.visible = true
+				_card_movel.visible = false
 			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
 				_bolha_avatar.visible = false
-			# Desativa a câmera 3D de fundo para não vazar avatar embaixo e poupar GPU/bateria
-			if root_cam != null and is_instance_valid(root_cam):
-				root_cam.cull_mask = 0
+			if corpo != null and corpo.has_method("ajustar_subviewport_avatar"):
+				corpo.ajustar_subviewport_avatar(Vector2i(360, 340), true)
 		"corpo_todo":
-			# Modo Corpo Cheio: Avatar 3D em tamanho gigante da cabeça aos pés!
-			if root_cam != null and is_instance_valid(root_cam):
-				root_cam.cull_mask = 1048575
-			var alt_chat = mini(250, int(tela.y * 0.38))
-			var base = tela.y - _margem_baixo() - teclado
-			ui.position = Vector2i(0, maxi(0, base - alt_chat))
-			ui.size = Vector2i(tela.x, alt_chat)
+			var alt_corpo: int = int(clampf(float(tela.y) * 0.50, 270.0, 450.0)) if teclado == 0 else 150
+			if _palco_meio != null and is_instance_valid(_palco_meio):
+				_palco_meio.visible = true
+				_palco_meio.custom_minimum_size.y = alt_corpo
 			if _card_movel != null and is_instance_valid(_card_movel):
 				_card_movel.visible = false
 			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
 				_bolha_avatar.visible = false
+			if corpo != null and corpo.has_method("ajustar_subviewport_avatar"):
+				corpo.ajustar_subviewport_avatar(Vector2i(340, 480), true)
+		"flutuante":
+			if _palco_meio != null and is_instance_valid(_palco_meio):
+				_palco_meio.visible = false
+			if _card_movel != null and is_instance_valid(_card_movel):
+				_card_movel.visible = not tem_overlay
+				_aplicar_tamanho_janelinha(false)
+			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
+				_bolha_avatar.visible = false
+			if corpo != null and corpo.has_method("ajustar_subviewport_avatar"):
+				corpo.ajustar_subviewport_avatar(Vector2i(260, 360), not tem_overlay)
 		"chat":
-			# Modo 100% Chat: Tela cheia limpa, avatar recolhido em bolha discreta
-			ui.position = Vector2i(0, 0)
-			ui.size = Vector2i(maxi(tela.x, root_w), maxi(tela.y, root_h) + 120)
-			_ajustar_margem_inferior_mobile(teclado)
+			if _palco_meio != null and is_instance_valid(_palco_meio):
+				_palco_meio.visible = false
 			if _card_movel != null and is_instance_valid(_card_movel):
 				_card_movel.visible = false
 			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
-				_bolha_avatar.visible = true
-			if root_cam != null and is_instance_valid(root_cam):
-				root_cam.cull_mask = 0
-		"topo":
-			# Modo Dividido no Topo: 34% avatar, 66% chat
-			if root_cam != null and is_instance_valid(root_cam):
-				root_cam.cull_mask = 1048575
-			var alt_topo = int(tela.y * 0.34) if teclado == 0 else mini(int(tela.y * 0.34), FAIXA_COM_TECLADO)
-			var base_t = tela.y - _margem_baixo() - teclado
-			ui.size = Vector2i(tela.x, maxi(180, base_t - alt_topo))
-			ui.position = Vector2i(0, maxi(0, base_t - ui.size.y))
-			if _card_movel != null and is_instance_valid(_card_movel):
-				_card_movel.visible = false
-			if _bolha_avatar != null and is_instance_valid(_bolha_avatar):
-				_bolha_avatar.visible = false
+				_bolha_avatar.visible = not tem_overlay
+			if corpo != null and corpo.has_method("ajustar_subviewport_avatar"):
+				corpo.ajustar_subviewport_avatar(Vector2i(240, 340), false)
+
+func _ajustar_margem_superior_mobile() -> void:
+	if ui == null or not is_instance_valid(ui):
+		return
+	var titulo = ui.get("title_label")
+	if titulo == null:
+		return
+	var m_top = titulo.get_parent().get_parent()
+	if m_top is MarginContainer:
+		m_top.add_theme_constant_override("margin_top", maxi(10, _margem_topo() + 6))
 
 func _ajustar_margem_inferior_mobile(teclado: int) -> void:
 	if ui == null or not is_instance_valid(ui):
 		return
 	var m = ui.get("_margem_entrada")
 	if m is MarginContainer:
-		var pad: int = _margem_baixo() + teclado
-		m.add_theme_constant_override("margin_bottom", maxi(14, pad + 10))
+		var pad: int = (_margem_baixo() if teclado == 0 else (teclado + 10))
+		m.add_theme_constant_override("margin_bottom", maxi(14, pad))
 
 func _estilizar_botao_topo(btn: Button) -> void:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.14, 0.16, 0.22, 0.85)
-	sb.border_color = Color(0.28, 0.32, 0.42, 0.70)
+	sb.bg_color = Color(0.14, 0.16, 0.22, 0.88)
+	sb.border_color = Color(0.28, 0.34, 0.44, 0.75)
 	sb.set_border_width_all(1)
 	sb.set_corner_radius_all(8)
-	sb.content_margin_left = 6
-	sb.content_margin_right = 6
+	sb.content_margin_left = 7
+	sb.content_margin_right = 7
 	sb.content_margin_top = 4
 	sb.content_margin_bottom = 4
 	var sb_hover := sb.duplicate()
-	sb_hover.bg_color = Color(0.20, 0.24, 0.32, 0.95)
-	sb_hover.border_color = Color(0.40, 0.45, 0.60, 0.90)
+	sb_hover.bg_color = Color(0.22, 0.26, 0.35, 0.96)
+	sb_hover.border_color = Color(0.45, 0.52, 0.68, 0.95)
 	btn.add_theme_stylebox_override("normal", sb)
 	btn.add_theme_stylebox_override("hover", sb_hover)
 	btn.add_theme_stylebox_override("pressed", sb_hover)
 	btn.add_theme_stylebox_override("focus", sb)
-	btn.add_theme_color_override("font_color", Color(0.92, 0.93, 0.96))
+	btn.add_theme_color_override("font_color", Color(0.93, 0.94, 0.97))
 
 func _esconder_o_que_e_de_pc() -> void:
 	if ui.get("move_btn") != null:
@@ -283,12 +345,12 @@ func _esconder_o_que_e_de_pc() -> void:
 		titulo.custom_minimum_size.x = 0
 		titulo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		titulo.clip_text = true
-		titulo.add_theme_font_size_override("font_size", 16)
+		titulo.add_theme_font_size_override("font_size", 15)
 		
-		# Botão seletor de modo do avatar (Flutuante Móvel / Corpo Cheio / Só Chat / No Topo)
+		# Botão seletor de modo do avatar (Meio estilo YouTube / Janelinha PiP / Corpo Cheio / Só Chat)
 		var btn_modo := Button.new()
-		btn_modo.text = "📱 Flutuante"
-		btn_modo.tooltip_text = "Alternar modo: Flutuante Móvel -> Corpo Cheio -> Só Chat -> No Topo"
+		btn_modo.text = "📺 Meio"
+		btn_modo.tooltip_text = "Alternar visualização: Modo Meio (YouTube) -> Janelinha (PiP) -> Corpo Cheio -> Só Chat"
 		btn_modo.focus_mode = Control.FOCUS_NONE
 		btn_modo.custom_minimum_size = Vector2(96, 34)
 		btn_modo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -297,6 +359,7 @@ func _esconder_o_que_e_de_pc() -> void:
 		btn_modo.pressed.connect(alternar_modo_layout)
 		_btn_modo_ref = btn_modo
 		titulo.get_parent().add_child(btn_modo)
+		_atualizar_botoes_modo()
 		
 		for c in titulo.get_parent().get_children():
 			if c.get_class() == "Control" and c != titulo and c != _menu_btn and c != btn_modo and c != ui.get("status_dot"):
@@ -728,31 +791,18 @@ func _enquadrar_avatar() -> void:
 	if _cam_pos_base == Vector3.ZERO:
 		_cam_pos_base = cam.global_position
 	
-	if modo_layout == "corpo_todo":
-		# Modo Corpo Cheio: recua e abaixa para enquadrar dos pés à cabeça com amplitude!
-		cam.global_position = Vector3(_cam_pos_base.x, 0.58, _cam_pos_base.z + 1.65)
+	if modo_layout == "corpo_todo" or (modo_layout in ["meio", "topo"] and modo_avatar == "corpo"):
+		# Corpo Cheio: recua e abaixa para enquadrar dos pés à cabeça no centro do palco!
+		cam.global_position = Vector3(_cam_pos_base.x, 0.60, _cam_pos_base.z + 1.58)
 		return
 	
-	if modo_layout == "flutuante":
-		# Janela Móvel: foca perfeitamente no rosto e busto com detalhes nítidos
-		cam.global_position = Vector3(_cam_pos_base.x, 1.05, _cam_pos_base.z + 0.35)
+	if modo_layout in ["meio", "topo"] and modo_avatar == "meio_corpo":
+		# Meio Corpo (da cintura à cabeça):
+		cam.global_position = Vector3(_cam_pos_base.x, 0.90, _cam_pos_base.z + 0.72)
 		return
 	
-	# Modo Busto / Faixa no Topo
-	cam.global_position = _cam_pos_base
-	var avatar = corpo.get_node_or_null("Akira")
-	var ponto: Vector3 = cam.global_position - cam.global_transform.basis.z * 0.9
-	if avatar is Node3D:
-		ponto = avatar.global_position
-		ponto.y = cam.global_position.y
-	var d: float = clampf((ponto - cam.global_position).dot(-cam.global_transform.basis.z), 0.3, 6.0)
-	
-	if tela.x > tela.y:
-		var delta_x: float = d * tan(deg_to_rad(cam.fov / 2.0)) * 0.65
-		cam.global_position = _cam_pos_base + cam.global_transform.basis.x * delta_x
-	else:
-		var frac := 0.32 if modo_avatar == "busto" else 0.50
-		cam.global_position = _cam_pos_base + deslocamento_da_camera(cam, d, float(tela.y), float(tela.y * frac))
+	# Busto (padrão do Modo Meio e da Janelinha PiP): rosto, óculos, gravata e sobretudo esmeralda nítidos
+	cam.global_position = Vector3(_cam_pos_base.x, 1.06, _cam_pos_base.z + 0.34)
 
 # ---------- teclado virtual ----------
 # Com o teclado aberto, a interface sobe para ficar acima dele (cobrindo parte da faixa do avatar, só enquanto se digita).
@@ -913,68 +963,216 @@ func _ao_evento_do_modelo(nome: String, dados: Dictionary) -> void:
 		"modelo.erro":
 			_mostrar_modelo(str(dados.get("erro", "Não consegui baixar o modelo.")), false, true)
 
-# ═══════════════════════ JANELA FLUTUANTE MÓVEL & GIRO 3D ═══════════════════════
+# ═══════════════════════ PALCO "MODO MEIO" (ESTILO YOUTUBE) & JANELINHA PiP ═══════════════════════
+func _montar_palco_meio() -> void:
+	if _palco_meio != null and is_instance_valid(_palco_meio):
+		return
+	var titulo = ui.get("title_label")
+	if titulo == null:
+		return
+	var barra: Node = titulo.get_parent().get_parent().get_parent()
+	var coluna: Node = barra.get_parent()
+	if coluna == null:
+		return
+	
+	var palco := PanelContainer.new()
+	palco.name = "PalcoMeioYouTube"
+	palco.clip_contents = true
+	palco.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var alt_ini: int = int(clampf(float(tela.y) * 0.34, 195.0, 310.0))
+	palco.custom_minimum_size = Vector2(0, alt_ini)
+	
+	var sb_palco := StyleBoxFlat.new()
+	sb_palco.bg_color = Color(0.055, 0.068, 0.095, 1.0)
+	sb_palco.border_color = Color(0.20, 0.28, 0.38, 0.85)
+	sb_palco.border_width_bottom = 1
+	palco.add_theme_stylebox_override("panel", sb_palco)
+	
+	var camada := Control.new()
+	camada.set_anchors_preset(Control.PRESET_FULL_RECT)
+	camada.mouse_filter = Control.MOUSE_FILTER_PASS
+	palco.add_child(camada)
+	
+	# Textura ao vivo do Zenith 3D centralizada no Palco Meio
+	var tex_palco := TextureRect.new()
+	tex_palco.name = "TexturaPalcoMeio"
+	tex_palco.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tex_palco.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_palco.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_palco.mouse_filter = Control.MOUSE_FILTER_STOP
+	tex_palco.tooltip_text = "Arraste para os lados para girar o Zenith 3D. Toque duplo centraliza."
+	tex_palco.gui_input.connect(_ao_gui_input_giro)
+	var corpo = ui.get_parent()
+	if corpo != null and corpo.has_method("obter_textura_avatar"):
+		tex_palco.texture = corpo.obter_textura_avatar()
+	camada.add_child(tex_palco)
+	_textura_palco = tex_palco
+	
+	# Barra de controles flutuante no canto superior direito do palco (estilo player do YouTube)
+	var barra_ctrl := HBoxContainer.new()
+	barra_ctrl.add_theme_constant_override("separation", 6)
+	barra_ctrl.anchor_left = 1.0
+	barra_ctrl.anchor_right = 1.0
+	barra_ctrl.anchor_top = 0.0
+	barra_ctrl.anchor_bottom = 0.0
+	barra_ctrl.offset_left = -215
+	barra_ctrl.offset_right = -8
+	barra_ctrl.offset_top = 8
+	barra_ctrl.offset_bottom = 36
+	barra_ctrl.alignment = BoxContainer.ALIGNMENT_END
+	camada.add_child(barra_ctrl)
+	
+	var btn_pip := Button.new()
+	btn_pip.text = "📱 Janelinha"
+	btn_pip.tooltip_text = "Destacar para Modo Janelinha Flutuante (PiP estilo YouTube)"
+	btn_pip.focus_mode = Control.FOCUS_NONE
+	btn_pip.custom_minimum_size = Vector2(86, 26)
+	btn_pip.add_theme_font_size_override("font_size", 11)
+	_estilizar_botao_topo(btn_pip)
+	btn_pip.pressed.connect(func(): definir_modo_layout("flutuante"))
+	barra_ctrl.add_child(btn_pip)
+	
+	var btn_zoom := Button.new()
+	btn_zoom.text = "🔍 Busto"
+	btn_zoom.tooltip_text = "Alternar enquadramento da câmera: Busto / Meio Corpo / Corpo Todo"
+	btn_zoom.focus_mode = Control.FOCUS_NONE
+	btn_zoom.custom_minimum_size = Vector2(68, 26)
+	btn_zoom.add_theme_font_size_override("font_size", 11)
+	_estilizar_botao_topo(btn_zoom)
+	btn_zoom.pressed.connect(alternar_modo_avatar)
+	barra_ctrl.add_child(btn_zoom)
+	_btn_zoom_palco = btn_zoom
+	
+	var btn_rst := Button.new()
+	btn_rst.text = "↺"
+	btn_rst.tooltip_text = "Centralizar rotação 3D de frente"
+	btn_rst.focus_mode = Control.FOCUS_NONE
+	btn_rst.custom_minimum_size = Vector2(28, 26)
+	btn_rst.add_theme_font_size_override("font_size", 11)
+	_estilizar_botao_topo(btn_rst)
+	btn_rst.pressed.connect(_resetar_giro_avatar)
+	barra_ctrl.add_child(btn_rst)
+	
+	coluna.add_child(palco)
+	# Insere logo abaixo da barra de topo (e da faixa de atividade) e acima da área de mensagens do chat
+	var idx_alvo: int = mini(coluna.get_child_count() - 1, barra.get_index() + 2)
+	coluna.move_child(palco, idx_alvo)
+	_palco_meio = palco
+
+func _dimensoes_janelinha() -> Vector2:
+	match _tam_janelinha_idx:
+		0: return Vector2(mini(136, int(tela.x * 0.34)), mini(188, int(tela.y * 0.25)))
+		2: return Vector2(mini(212, int(tela.x * 0.52)), mini(288, int(tela.y * 0.38)))
+		_: return Vector2(mini(170, int(tela.x * 0.42)), mini(235, int(tela.y * 0.31)))
+
+func _aplicar_tamanho_janelinha(animar: bool = true) -> void:
+	if _card_movel == null or not is_instance_valid(_card_movel):
+		return
+	var d := _dimensoes_janelinha()
+	var ny := clampf(_card_movel.position.y, 48.0, maxf(48.0, float(tela.y) - d.y - 68.0))
+	var nx := clampf(_card_movel.position.x, 6.0, maxf(6.0, float(tela.x) - d.x - 6.0))
+	# Mantém encostado na borda mais próxima
+	if nx + d.x * 0.5 >= float(tela.x) * 0.5:
+		nx = maxf(6.0, float(tela.x) - d.x - 10.0)
+	else:
+		nx = 10.0
+	_card_movel.custom_minimum_size = d
+	if animar and _card_movel.is_inside_tree():
+		var tw := _card_movel.create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(_card_movel, "size", d, 0.18)
+		tw.tween_property(_card_movel, "position", Vector2(nx, ny), 0.18)
+	else:
+		_card_movel.size = d
+		_card_movel.position = Vector2(nx, ny)
+	_pos_card_flutuante = Vector2(nx, ny)
+
 func _montar_card_flutuante() -> void:
 	var raiz: Control = ui.get("_raiz_ui")
 	if raiz == null:
 		return
+	if _card_movel != null and is_instance_valid(_card_movel):
+		return
 	
 	var card := PanelContainer.new()
 	card.name = "CardVRMFlutuante"
-	var larg := mini(170, int(tela.x * 0.42))
-	var alt := mini(235, int(tela.y * 0.32))
-	card.custom_minimum_size = Vector2(larg, alt)
-	card.size = Vector2(larg, alt)
+	var dim := _dimensoes_janelinha()
+	card.custom_minimum_size = dim
+	card.size = dim
 	if _pos_card_flutuante == Vector2(-1, -1):
-		_pos_card_flutuante = Vector2(tela.x - larg - 12, 54)
+		_pos_card_flutuante = Vector2(tela.x - dim.x - 10, 56)
 	card.position = _pos_card_flutuante
+	card.clip_contents = true
 	
-	# Estilo translúcido elegante com cantos arredondados e borda ciano
+	# Estilo miniplayer PiP (estilo YouTube) com cantos arredondados, vidro escuro e sombra
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.11, 0.16, 0.82)
-	sb.border_color = Color(0.25, 0.45, 0.70, 0.65)
+	sb.bg_color = Color(0.08, 0.10, 0.15, 0.92)
+	sb.border_color = Color(0.28, 0.48, 0.72, 0.72)
 	sb.set_border_width_all(1)
 	sb.set_corner_radius_all(14)
-	sb.shadow_color = Color(0, 0, 0, 0.45)
-	sb.shadow_size = 8
+	sb.shadow_color = Color(0, 0, 0, 0.52)
+	sb.shadow_size = 10
 	card.add_theme_stylebox_override("panel", sb)
 	
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 2)
 	card.add_child(vb)
 	
-	# Barra de arraste do card (header)
+	# Barra de arraste do miniplayer (header)
 	var topo_card := HBoxContainer.new()
-	topo_card.custom_minimum_size.y = 24
+	topo_card.custom_minimum_size.y = 26
 	topo_card.mouse_filter = Control.MOUSE_FILTER_PASS
 	topo_card.gui_input.connect(_ao_gui_input_card)
 	vb.add_child(topo_card)
 	
 	var alca := Label.new()
-	alca.text = " ⋮⋮ Zenith 3D"
+	alca.text = " ⋮⋮ Zenith"
 	alca.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	alca.add_theme_font_size_override("font_size", 10)
-	alca.add_theme_color_override("font_color", Color(0.70, 0.80, 0.95))
+	alca.add_theme_color_override("font_color", Color(0.75, 0.84, 0.96))
 	alca.mouse_filter = Control.MOUSE_FILTER_PASS
 	topo_card.add_child(alca)
+	
+	# Botão expandir para Modo Meio (estilo YouTube)
+	var btn_meio := Button.new()
+	btn_meio.text = "📺"
+	btn_meio.tooltip_text = "Fixar no Modo Meio (Palco no Topo estilo YouTube)"
+	btn_meio.focus_mode = Control.FOCUS_NONE
+	btn_meio.custom_minimum_size = Vector2(24, 22)
+	btn_meio.add_theme_font_size_override("font_size", 10)
+	_estilizar_botao_topo(btn_meio)
+	btn_meio.pressed.connect(func(): definir_modo_layout("meio"))
+	topo_card.add_child(btn_meio)
+	
+	# Botão redimensionar Janelinha (P / M / G)
+	var btn_tam := Button.new()
+	btn_tam.text = "⤢"
+	btn_tam.tooltip_text = "Mudar tamanho da Janelinha (Compacta / Média / Grande)"
+	btn_tam.focus_mode = Control.FOCUS_NONE
+	btn_tam.custom_minimum_size = Vector2(24, 22)
+	btn_tam.add_theme_font_size_override("font_size", 10)
+	_estilizar_botao_topo(btn_tam)
+	btn_tam.pressed.connect(func():
+		_tam_janelinha_idx = (_tam_janelinha_idx + 1) % 3
+		_aplicar_tamanho_janelinha(true))
+	topo_card.add_child(btn_tam)
 	
 	# Botão resetar rotação para frente
 	var btn_reset := Button.new()
 	btn_reset.text = "↺"
 	btn_reset.tooltip_text = "Centralizar avatar de frente"
 	btn_reset.focus_mode = Control.FOCUS_NONE
-	btn_reset.custom_minimum_size = Vector2(22, 20)
+	btn_reset.custom_minimum_size = Vector2(22, 22)
 	btn_reset.add_theme_font_size_override("font_size", 10)
 	_estilizar_botao_topo(btn_reset)
 	btn_reset.pressed.connect(_resetar_giro_avatar)
 	topo_card.add_child(btn_reset)
 	
-	# Botão minimizar
+	# Botão minimizar para bolha
 	var btn_min := Button.new()
 	btn_min.text = "—"
-	btn_min.tooltip_text = "Minimizar avatar"
+	btn_min.tooltip_text = "Recolher janelinha para bolha lateral"
 	btn_min.focus_mode = Control.FOCUS_NONE
-	btn_min.custom_minimum_size = Vector2(22, 20)
+	btn_min.custom_minimum_size = Vector2(22, 22)
 	btn_min.add_theme_font_size_override("font_size", 10)
 	_estilizar_botao_topo(btn_min)
 	btn_min.pressed.connect(func():
@@ -1001,6 +1199,9 @@ func _montar_card_flutuante() -> void:
 	_textura_avatar = tex_rect
 	
 	raiz.add_child(card)
+	# Mantém a janelinha abaixo das camadas de overlay (Configurações, Boas-vindas, etc.)
+	if raiz.get_child_count() > 2:
+		raiz.move_child(card, 2)
 	_card_movel = card
 	
 	# Bolha flutuante para reabrir quando minimizado
@@ -1008,30 +1209,52 @@ func _montar_card_flutuante() -> void:
 	bolha.text = "👤"
 	bolha.tooltip_text = "Abrir avatar flutuante"
 	bolha.focus_mode = Control.FOCUS_NONE
-	bolha.custom_minimum_size = Vector2(38, 38)
-	bolha.size = Vector2(38, 38)
-	bolha.position = Vector2(tela.x - 50, 54)
+	bolha.custom_minimum_size = Vector2(40, 40)
+	bolha.size = Vector2(40, 40)
+	bolha.position = Vector2(tela.x - 50, 56)
 	bolha.visible = false
 	_estilizar_botao_topo(bolha)
 	bolha.pressed.connect(func():
 		bolha.visible = false
-		card.visible = true)
+		if modo_layout == "chat":
+			definir_modo_layout("flutuante")
+		else:
+			card.visible = true)
 	raiz.add_child(bolha)
+	if raiz.get_child_count() > 3:
+		raiz.move_child(bolha, 3)
 	_bolha_avatar = bolha
+
+func _encaixar_janelinha_na_borda() -> void:
+	if _card_movel == null or not is_instance_valid(_card_movel):
+		return
+	var cx := _card_movel.position.x + _card_movel.size.x * 0.5
+	var alvo_x := 10.0 if cx < float(tela.x) * 0.5 else maxf(10.0, float(tela.x) - _card_movel.size.x - 10.0)
+	var alvo_y := clampf(_card_movel.position.y, 48.0, maxf(48.0, float(tela.y) - _card_movel.size.y - 64.0))
+	_pos_card_flutuante = Vector2(alvo_x, alvo_y)
+	if _card_movel.is_inside_tree():
+		var tw := _card_movel.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(_card_movel, "position", _pos_card_flutuante, 0.16)
+	else:
+		_card_movel.position = _pos_card_flutuante
 
 func _ao_gui_input_card(ev: InputEvent) -> void:
 	if ev is InputEventMouseButton:
 		if ev.button_index == MOUSE_BUTTON_LEFT:
 			_arraste_card = ev.pressed
 			_pos_toque_card = ev.global_position
+			if not ev.pressed:
+				_encaixar_janelinha_na_borda()
 	elif ev is InputEventScreenTouch:
 		_arraste_card = ev.pressed
 		_pos_toque_card = ev.position
+		if not ev.pressed:
+			_encaixar_janelinha_na_borda()
 	elif (ev is InputEventMouseMotion or ev is InputEventScreenDrag) and _arraste_card:
 		if _card_movel != null:
 			var nova_pos = _card_movel.position + ev.relative
-			nova_pos.x = clampf(nova_pos.x, 0.0, float(tela.x - _card_movel.size.x))
-			nova_pos.y = clampf(nova_pos.y, 44.0, float(tela.y - _card_movel.size.y - 48))
+			nova_pos.x = clampf(nova_pos.x, 4.0, maxf(4.0, float(tela.x - _card_movel.size.x - 4)))
+			nova_pos.y = clampf(nova_pos.y, 44.0, maxf(44.0, float(tela.y - _card_movel.size.y - 54)))
 			_card_movel.position = nova_pos
 			_pos_card_flutuante = nova_pos
 
@@ -1085,12 +1308,4 @@ func _resetar_giro_avatar() -> void:
 		avatar.rotation.y = 0.0
 
 func ao_esconder_overlay(_overlay: Control) -> void:
-	if _card_movel != null and is_instance_valid(_card_movel):
-		var tem_aberta := false
-		var cartoes_checar = [ui.settings_overlay, ui.approval_overlay, ui.onboarding_overlay, ui.memories_overlay, ui.projetos_overlay, ui.get("programacao_overlay")]
-		for c in cartoes_checar:
-			if c != null and is_instance_valid(c) and c.visible:
-				tem_aberta = true
-				break
-		if not tem_aberta:
-			_card_movel.visible = true
+	_posicionar_janela()
