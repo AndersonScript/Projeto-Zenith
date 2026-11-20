@@ -1069,7 +1069,9 @@ func _aplicar_tamanho_janelinha(animar: bool = true) -> void:
 	if _card_movel == null or not is_instance_valid(_card_movel):
 		return
 	var d := _dimensoes_janelinha()
-	var ny := clampf(_card_movel.position.y, 48.0, maxf(48.0, float(tela.y) - d.y - 68.0))
+	var y_min := 56.0 + float(_margem_topo())
+	var y_max := maxf(y_min, float(tela.y) - d.y - float(_margem_baixo()) - 68.0)
+	var ny := clampf(_card_movel.position.y, y_min, y_max)
 	var nx := clampf(_card_movel.position.x, 6.0, maxf(6.0, float(tela.x) - d.x - 6.0))
 	# Mantém encostado na borda mais próxima
 	if nx + d.x * 0.5 >= float(tela.x) * 0.5:
@@ -1098,8 +1100,9 @@ func _montar_card_flutuante() -> void:
 	var dim := _dimensoes_janelinha()
 	card.custom_minimum_size = dim
 	card.size = dim
+	var y_ini := 78.0 + float(_margem_topo())
 	if _pos_card_flutuante == Vector2(-1, -1):
-		_pos_card_flutuante = Vector2(tela.x - dim.x - 10, 56)
+		_pos_card_flutuante = Vector2(maxf(10.0, float(tela.x) - dim.x - 10.0), y_ini)
 	card.position = _pos_card_flutuante
 	card.clip_contents = true
 	
@@ -1199,9 +1202,13 @@ func _montar_card_flutuante() -> void:
 	_textura_avatar = tex_rect
 	
 	raiz.add_child(card)
-	# Mantém a janelinha abaixo das camadas de overlay (Configurações, Boas-vindas, etc.)
-	if raiz.get_child_count() > 2:
-		raiz.move_child(card, 2)
+	# Posiciona ACIMA de todo o chat/topbar/faixa de atividade e ABAIXO da gaveta e de todos os overlays (Configurações, Boas-vindas, Splash).
+	var idx_pip: int = raiz.get_child_count() - 1
+	if _escurecer != null and is_instance_valid(_escurecer) and _escurecer.get_parent() == raiz:
+		idx_pip = _escurecer.get_index()
+	elif ui.get("settings_overlay") != null and ui.settings_overlay.get_parent() == raiz:
+		idx_pip = ui.settings_overlay.get_index()
+	raiz.move_child(card, idx_pip)
 	_card_movel = card
 	
 	# Bolha flutuante para reabrir quando minimizado
@@ -1211,7 +1218,7 @@ func _montar_card_flutuante() -> void:
 	bolha.focus_mode = Control.FOCUS_NONE
 	bolha.custom_minimum_size = Vector2(40, 40)
 	bolha.size = Vector2(40, 40)
-	bolha.position = Vector2(tela.x - 50, 56)
+	bolha.position = Vector2(maxf(10.0, float(tela.x) - 50.0), y_ini)
 	bolha.visible = false
 	_estilizar_botao_topo(bolha)
 	bolha.pressed.connect(func():
@@ -1221,8 +1228,7 @@ func _montar_card_flutuante() -> void:
 		else:
 			card.visible = true)
 	raiz.add_child(bolha)
-	if raiz.get_child_count() > 3:
-		raiz.move_child(bolha, 3)
+	raiz.move_child(bolha, idx_pip + 1)
 	_bolha_avatar = bolha
 
 func _encaixar_janelinha_na_borda() -> void:
@@ -1230,7 +1236,9 @@ func _encaixar_janelinha_na_borda() -> void:
 		return
 	var cx := _card_movel.position.x + _card_movel.size.x * 0.5
 	var alvo_x := 10.0 if cx < float(tela.x) * 0.5 else maxf(10.0, float(tela.x) - _card_movel.size.x - 10.0)
-	var alvo_y := clampf(_card_movel.position.y, 48.0, maxf(48.0, float(tela.y) - _card_movel.size.y - 64.0))
+	var y_min := 56.0 + float(_margem_topo())
+	var y_max := maxf(y_min, float(tela.y) - _card_movel.size.y - float(_margem_baixo()) - 68.0)
+	var alvo_y := clampf(_card_movel.position.y, y_min, y_max)
 	_pos_card_flutuante = Vector2(alvo_x, alvo_y)
 	if _card_movel.is_inside_tree():
 		var tw := _card_movel.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -1252,9 +1260,11 @@ func _ao_gui_input_card(ev: InputEvent) -> void:
 			_encaixar_janelinha_na_borda()
 	elif (ev is InputEventMouseMotion or ev is InputEventScreenDrag) and _arraste_card:
 		if _card_movel != null:
+			var y_min := 52.0 + float(_margem_topo())
+			var y_max := maxf(y_min, float(tela.y) - _card_movel.size.y - float(_margem_baixo()) - 58.0)
 			var nova_pos = _card_movel.position + ev.relative
 			nova_pos.x = clampf(nova_pos.x, 4.0, maxf(4.0, float(tela.x - _card_movel.size.x - 4)))
-			nova_pos.y = clampf(nova_pos.y, 44.0, maxf(44.0, float(tela.y - _card_movel.size.y - 54)))
+			nova_pos.y = clampf(nova_pos.y, y_min, y_max)
 			_card_movel.position = nova_pos
 			_pos_card_flutuante = nova_pos
 

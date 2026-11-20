@@ -192,8 +192,20 @@ func _process(delta):
 # ============================================================
 #  MODO CELULAR STANDALONE (100% no celular, nada fora)
 # ============================================================
+var _config_mobile: Dictionary = {
+	"active_ai": "gemini",
+	"onboarding_done": false,
+	"persona_name": "Zenith",
+	"user_name": "",
+	"persona_description": "",
+	"vida_nivel": "suave",
+	"vida_bracos_naturais": true,
+	"vida_olhar_mouse": false
+}
+
 func _iniciar_modo_standalone() -> void:
 	print("[Zenith/Corpo] 📱 Modo Standalone Celular ativo (100% no aparelho).")
+	_carregar_config_mobile()
 	_emitir_configuracoes_mobile()
 	_emitir_conversas_mobile()
 	_emitir_chaves_locais()
@@ -203,13 +215,17 @@ func _carregar_config_mobile() -> void:
 		var f = FileAccess.open(CONFIG_LOCAL_PATH, FileAccess.READ)
 		if f:
 			var parsed = JSON.parse_string(f.get_as_text())
-			if parsed is Dictionary and parsed.has("active_ai"):
-				_provedor_atual = str(parsed["active_ai"])
+			if parsed is Dictionary:
+				for k in parsed.keys():
+					_config_mobile[k] = parsed[k]
+				if _config_mobile.has("active_ai"):
+					_provedor_atual = str(_config_mobile["active_ai"])
 
 func _salvar_config_mobile() -> void:
+	_config_mobile["active_ai"] = _provedor_atual
 	var f = FileAccess.open(CONFIG_LOCAL_PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"active_ai": _provedor_atual}))
+		f.store_string(JSON.stringify(_config_mobile))
 
 func _carregar_historico_mobile() -> void:
 	_historico_mobile.clear()
@@ -233,15 +249,18 @@ func _emitir_configuracoes_mobile() -> void:
 		{"id": "claude", "nome": "Claude (OpenRouter)", "pronta": true}
 	]
 	var conf = {
-		"persona_name": "Zenith",
+		"persona_name": str(_config_mobile.get("persona_name", "Zenith")),
+		"user_name": str(_config_mobile.get("user_name", "")),
+		"persona_description": str(_config_mobile.get("persona_description", "")),
+		"onboarding_done": bool(_config_mobile.get("onboarding_done", false)),
 		"active_ai": _provedor_atual,
 		"_ai_ui": {
 			"entradas": entradas,
 			"selecionar": _provedor_atual
 		},
-		"vida_nivel": "suave",
-		"vida_bracos_naturais": true,
-		"vida_olhar_mouse": true
+		"vida_nivel": str(_config_mobile.get("vida_nivel", "suave")),
+		"vida_bracos_naturais": bool(_config_mobile.get("vida_bracos_naturais", true)),
+		"vida_olhar_mouse": bool(_config_mobile.get("vida_olhar_mouse", false))
 	}
 	emit_signal("settings_data", conf)
 
@@ -516,7 +535,7 @@ func _processar_chat_standalone(text: String, anexos: Array = []) -> void:
 	emit_signal("atividade", "pensando", "💭", "Pensando na resposta...", true)
 	_despachar_ia(prov_escolhido, chave_escolhida, text)
 
-var _modelos_gemini: Array = ["gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-lite"]
+var _modelos_gemini: Array = ["gemini-2.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash-lite", "gemini-3.0-flash", "gemini-2.5-pro", "gemini-2.0-flash"]
 var _gemini_modelo_idx: int = 0
 var _gemini_chave_atual: String = ""
 var _gemini_prompt_atual: String = ""
@@ -682,12 +701,14 @@ func _ao_resposta_http_ai(result: int, response_code: int, headers: PackedString
 			if err_obj is Dictionary and err_obj.has("message"):
 				raw_msg = str(err_obj["message"])
 		
-		# Fallback automático de modelos do Gemini caso o modelo não exista
-		if _gemini_tentando and (response_code == 404 or "not found" in raw_msg.to_lower() or "is not supported" in raw_msg.to_lower()):
+		# Fallback automático de modelos do Gemini caso o modelo não exista ou tenha sido descontinuado
+		var raw_low = raw_msg.to_lower()
+		var erro_modelo = (response_code == 404 or "not found" in raw_low or "no longer available" in raw_low or "deprecated" in raw_low or "is not supported" in raw_low)
+		if _gemini_tentando and erro_modelo:
 			if _gemini_modelo_idx + 1 < _modelos_gemini.size():
 				_gemini_modelo_idx += 1
 				var prox_mod = _modelos_gemini[_gemini_modelo_idx]
-				print("[Zenith/Gemini] Modelo anterior não encontrado. Tentando modelo fallback: ", prox_mod)
+				print("[Zenith/Gemini] Modelo anterior indisponível. Tentando modelo fallback: ", prox_mod)
 				_enviar_gemini(_gemini_chave_atual, _gemini_prompt_atual)
 				return
 		_gemini_tentando = false
@@ -859,38 +880,72 @@ func _ao_elevenlabs_resposta(result: int, response_code: int, _headers: PackedSt
 		print("[Zenith/ElevenLabs] Falhou (código %d). Usando voz nativa pt-BR." % response_code)
 		_falar_tts_nativo_brasil(_ultimo_texto_tts)
 
-func _falar_tts_nativo_brasil(limpo: String) -> void:
-	var vozes = DisplayServer.tts_get_voices()
-	var voz_escolhida = ""
+func _falar_tts_nativo_brasil(limpo: String, tentativa: int = 0) -> void:
+	if limpo.strip_edges().is_empty():
+		return
+	if DisplayServer.tts_is_speaking():
+		DisplayServer.tts_stop()
+	var voz_escolhida := ""
 
-	# Procura voz expressamente brasileira
-	for v in vozes:
-		var vl = v.to_lower()
-		if "pt-br" in vl or "pt_br" in vl or "brasil" in vl or "brazil" in vl or "cbr" in vl:
-			voz_escolhida = v
-			break
+	# 1) Tenta diretamente o idioma pt-BR (retorna PackedStringArray de IDs)
+	var vozes_pt_br = DisplayServer.tts_get_voices_for_language("pt-BR")
+	if vozes_pt_br.size() > 0:
+		voz_escolhida = str(vozes_pt_br[0])
 
-	# Se não achou por nome, busca idioma 'pt' que NÃO seja pt-PT
+	# 2) Procura voz brasileira nos dicionários de tts_get_voices() (Array[Dictionary] no Godot 4)
+	if voz_escolhida.is_empty():
+		var vozes = DisplayServer.tts_get_voices()
+		for item in vozes:
+			var vid := ""
+			var desc := ""
+			if item is Dictionary:
+				vid = str(item.get("id", ""))
+				desc = (str(item.get("language", "")) + " " + str(item.get("name", "")) + " " + vid).to_lower()
+			else:
+				vid = str(item)
+				desc = vid.to_lower()
+			if not vid.is_empty() and ("pt-br" in desc or "pt_br" in desc or "por-bra" in desc or "por_bra" in desc or "brasil" in desc or "brazil" in desc or "cbr" in desc):
+				voz_escolhida = vid
+				break
+
+	# 3) Fallback: qualquer voz 'pt' / 'por' que NÃO seja pt-PT
 	if voz_escolhida.is_empty():
 		var vozes_pt = DisplayServer.tts_get_voices_for_language("pt")
 		for v in vozes_pt:
-			var vl = v.to_lower()
+			var vl = str(v).to_lower()
 			if not ("pt-pt" in vl or "pt_pt" in vl or "portugal" in vl):
-				voz_escolhida = v
+				voz_escolhida = str(v)
 				break
 		if voz_escolhida.is_empty() and vozes_pt.size() > 0:
-			voz_escolhida = vozes_pt[0]
+			voz_escolhida = str(vozes_pt[0])
 
-	if voz_escolhida.is_empty() and vozes.size() > 0:
-		voz_escolhida = vozes[0]
+	# 4) Último recurso: primeira voz disponível no aparelho
+	if voz_escolhida.is_empty():
+		var todas = DisplayServer.tts_get_voices()
+		if todas.size() > 0:
+			var first = todas[0]
+			voz_escolhida = str(first.get("id", "")) if first is Dictionary else str(first)
 
 	if not voz_escolhida.is_empty():
-		DisplayServer.tts_speak(limpo, voz_escolhida)
+		print("[Zenith/TTS] Falando com voz: ", voz_escolhida)
+		DisplayServer.tts_speak(limpo, voz_escolhida, 100, 1.0, 1.0)
+	elif tentativa < 2:
+		# No Android o motor TextToSpeech pode terminar de inicializar de forma assíncrona nos primeiros segundos
+		get_tree().create_timer(0.8).timeout.connect(func(): _falar_tts_nativo_brasil(limpo, tentativa + 1))
+	else:
+		print("[Zenith/TTS] Nenhuma voz TTS encontrada no dispositivo.")
 
 func _limpar_texto_para_tts(texto: String) -> String:
-	var regex = RegEx.new()
-	regex.compile("\\*[^\\*]+\\*|`[^`]+`|#+|[\\(\\[][^\\)\\]]*[\\)\\]]")
-	var s = regex.sub(texto, "", true)
+	var s := texto
+	# Remove blocos de código e markdown sem apagar as palavras em negrito
+	var rx_code := RegEx.new()
+	rx_code.compile("```[\\s\\S]*?```|`[^`]+`")
+	s = rx_code.sub(s, "", true)
+	s = s.replace("**", "").replace("__", "").replace("##", "").replace("#", "")
+	var rx_tags := RegEx.new()
+	rx_tags.compile("[\\(\\[][^\\)\\]]*[\\)\\]]")
+	s = rx_tags.sub(s, "", true)
+	s = s.replace("*", "")
 	return s.strip_edges()
 
 func _testar_chaves_locais() -> void:
@@ -1186,8 +1241,11 @@ func request_settings():
 	send_to_brain({"action": "get_settings"})
 
 func save_settings(changes: Dictionary):
-	if changes.has("active_ai") and _modo_celular():
-		_provedor_atual = str(changes["active_ai"])
+	if _modo_celular():
+		for k in changes.keys():
+			_config_mobile[k] = changes[k]
+		if changes.has("active_ai"):
+			_provedor_atual = str(changes["active_ai"])
 		_salvar_config_mobile()
 		if not is_connected_to_brain():
 			_emitir_configuracoes_mobile()

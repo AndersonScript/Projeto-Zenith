@@ -2110,7 +2110,8 @@ func _build_onboarding_overlay() -> Control:
 	vbox.add_child(title2)
 
 	var subtitle = Label.new()
-	subtitle.text = ("Essa é a primeira vez rodando neste computador. Pode manter a Zenith " +
+	var onde_txt := "neste aparelho" if (OS.get_name() == "Android" or OS.get_cmdline_user_args().has("--layout-celular")) else "neste computador"
+	subtitle.text = ("Essa é a primeira vez rodando " + onde_txt + ". Pode manter a Zenith " +
 		"como está, ou criar a SUA própria IA agora — nome, como ela deve te chamar e " +
 		"(se quiser) a personalidade dela. Dá pra mudar tudo de novo depois em " +
 		"Configurações > Identidade.")
@@ -2210,16 +2211,19 @@ func _maybe_show_onboarding(settings: Dictionary):
 	if settings.get("onboarding_done", false):
 		return
 	_onboarding_shown_once = true
-	# Pré-preenche com o que já existir (útil se alguém reabrir essa
-	# tela manualmente no futuro, ou se a config trouxer algo parcial).
-	var name_field: LineEdit = onboarding_overlay.get_meta("name_field")
-	var user_field: LineEdit = onboarding_overlay.get_meta("user_field")
-	if name_field:
-		name_field.text = String(settings.get("persona_name", ""))
-	if user_field:
-		user_field.text = String(settings.get("user_name", ""))
-	_layout_onboarding_card(onboarding_overlay, onboarding_card)
-	_show_overlay(onboarding_overlay, onboarding_card)
+	var mostrar := func():
+		var name_field: LineEdit = onboarding_overlay.get_meta("name_field")
+		var user_field: LineEdit = onboarding_overlay.get_meta("user_field")
+		if name_field:
+			name_field.text = String(settings.get("persona_name", ""))
+		if user_field:
+			user_field.text = String(settings.get("user_name", ""))
+		_layout_onboarding_card(onboarding_overlay, onboarding_card)
+		_show_overlay(onboarding_overlay, onboarding_card)
+	if _raiz_ui != null and _raiz_ui.get_node_or_null("AnimatedSplash") != null:
+		get_tree().create_timer(1.85).timeout.connect(mostrar)
+	else:
+		mostrar.call()
 
 
 # ================= MEMÓRIAS ("o que ela lembra") =================
@@ -5507,7 +5511,7 @@ func _build_programacao_overlay() -> Control:
 	return overlay
 
 
-# ================= ABERTURA ANIMADA (FIEL AO PRINT ORIGINAL + ANIMAÇÃO VIVA) =================
+# ================= ABERTURA ANIMADA ÚNICA (SEM TELA DUPLICADA E SEM QUADRADO PRETO) =================
 func _build_animated_splash() -> void:
 	if _raiz_ui == null or not is_instance_valid(_raiz_ui):
 		return
@@ -5516,10 +5520,10 @@ func _build_animated_splash() -> void:
 	splash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	splash.mouse_filter = Control.MOUSE_FILTER_STOP
 	
-	# Fundo idêntico ao tom original da splash (#0c0d0f) preenchendo 100% de qualquer celular/PC
+	# Fundo Obsidian escuro contínuo (#0d0e11) preenchendo 100% de qualquer tela
 	var bg := ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.047, 0.051, 0.059, 1.0)
+	bg.color = Color(0.051, 0.055, 0.067, 1.0)
 	splash.add_child(bg)
 	
 	var center := CenterContainer.new()
@@ -5528,87 +5532,113 @@ func _build_animated_splash() -> void:
 	
 	var vb := VBoxContainer.new()
 	vb.alignment = BoxContainer.ALIGNMENT_CENTER
-	vb.add_theme_constant_override("separation", 22)
+	vb.add_theme_constant_override("separation", 20)
 	center.add_child(vb)
 	
-	# Palco central do ícone com aura esmeralda animada e anel orbital (sem borda quadrada feia)
+	# Palco do ícone: aura + dois anéis orbitais girando + ícone recortado em squircle (zero quadrado preto!)
 	var palco_logo := Control.new()
-	palco_logo.custom_minimum_size = Vector2(220, 220)
+	palco_logo.custom_minimum_size = Vector2(236, 236)
 	palco_logo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	vb.add_child(palco_logo)
 	
 	var aura := Panel.new()
-	aura.size = Vector2(210, 210)
-	aura.position = Vector2(5, 5)
-	aura.pivot_offset = Vector2(105, 105)
+	aura.size = Vector2(204, 204)
+	aura.position = Vector2(16, 16)
+	aura.pivot_offset = Vector2(102, 102)
 	var sb_aura := StyleBoxFlat.new()
-	sb_aura.bg_color = Color(0.07, 0.17, 0.16, 0.24)
-	sb_aura.set_corner_radius_all(105)
-	sb_aura.shadow_color = Color(0.12, 0.34, 0.30, 0.45)
-	sb_aura.shadow_size = 54
+	sb_aura.bg_color = Color(0.06, 0.18, 0.17, 0.22)
+	sb_aura.set_corner_radius_all(102)
+	sb_aura.shadow_color = Color(0.14, 0.42, 0.38, 0.40)
+	sb_aura.shadow_size = 56
 	aura.add_theme_stylebox_override("panel", sb_aura)
 	palco_logo.add_child(aura)
 	
-	var anel := Panel.new()
-	anel.size = Vector2(216, 216)
-	anel.position = Vector2(2, 2)
-	anel.pivot_offset = Vector2(108, 108)
-	var sb_anel := StyleBoxFlat.new()
-	sb_anel.bg_color = Color(0, 0, 0, 0)
-	sb_anel.border_color = Color(0.45, 0.84, 0.76, 0.28)
-	sb_anel.border_width_top = 2
-	sb_anel.border_width_bottom = 2
-	sb_anel.set_corner_radius_all(108)
-	anel.add_theme_stylebox_override("panel", sb_anel)
-	palco_logo.add_child(anel)
+	var anel_ext := Panel.new()
+	anel_ext.size = Vector2(224, 224)
+	anel_ext.position = Vector2(6, 6)
+	anel_ext.pivot_offset = Vector2(112, 112)
+	var sb_ext := StyleBoxFlat.new()
+	sb_ext.bg_color = Color(0, 0, 0, 0)
+	sb_ext.border_color = Color(0.45, 0.86, 0.78, 0.32)
+	sb_ext.border_width_top = 2
+	sb_ext.border_width_right = 1
+	sb_ext.set_corner_radius_all(112)
+	anel_ext.add_theme_stylebox_override("panel", sb_ext)
+	palco_logo.add_child(anel_ext)
+	
+	var anel_int := Panel.new()
+	anel_int.size = Vector2(198, 198)
+	anel_int.position = Vector2(19, 19)
+	anel_int.pivot_offset = Vector2(99, 99)
+	var sb_int := StyleBoxFlat.new()
+	sb_int.bg_color = Color(0, 0, 0, 0)
+	sb_int.border_color = Color(0.32, 0.65, 0.92, 0.25)
+	sb_int.border_width_bottom = 2
+	sb_int.border_width_left = 1
+	sb_int.set_corner_radius_all(99)
+	anel_int.add_theme_stylebox_override("panel", sb_int)
+	palco_logo.add_child(anel_int)
+	
+	# Máscara arredondada perfeita (CLIP_CHILDREN_AND_DRAW) para eliminar qualquer canto quadrado do icon.png
+	var icon_mask := Panel.new()
+	icon_mask.size = Vector2(156, 156)
+	icon_mask.position = Vector2(40, 40)
+	icon_mask.pivot_offset = Vector2(78, 78)
+	icon_mask.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	var sb_mask := StyleBoxFlat.new()
+	sb_mask.bg_color = Color(0.06, 0.065, 0.08, 1.0)
+	sb_mask.border_color = Color(0.36, 0.68, 0.64, 0.35)
+	sb_mask.set_border_width_all(1)
+	sb_mask.set_corner_radius_all(36)
+	icon_mask.add_theme_stylebox_override("panel", sb_mask)
+	palco_logo.add_child(icon_mask)
 	
 	var logo_rect := TextureRect.new()
 	logo_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	logo_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo_rect.size = Vector2(196, 196)
-	logo_rect.position = Vector2(12, 12)
-	logo_rect.pivot_offset = Vector2(98, 98)
+	logo_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	logo_rect.size = Vector2(182, 182)
+	logo_rect.position = Vector2(-13, -13)
 	var icon_tex = load("res://icon.png")
 	if icon_tex is Texture2D:
 		logo_rect.texture = icon_tex
-	palco_logo.add_child(logo_rect)
+	icon_mask.add_child(logo_rect)
 	
-	# Título "Seja bem-vindo" no tom creme quente original do print
+	# Título limpo
 	var lbl_welcome := Label.new()
 	lbl_welcome.text = "Seja bem-vindo"
 	lbl_welcome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl_welcome.add_theme_font_size_override("font_size", 24)
-	lbl_welcome.add_theme_color_override("font_color", Color(0.94, 0.89, 0.83, 1.0))
+	lbl_welcome.add_theme_font_size_override("font_size", 23)
+	lbl_welcome.add_theme_color_override("font_color", Color(0.94, 0.90, 0.85, 1.0))
 	vb.add_child(lbl_welcome)
 	
-	# Rodapé fixado na parte inferior (responsivo a qualquer altura de tela)
+	# Rodapé responsivo com barra de progresso suave + status
 	var rodape_box := VBoxContainer.new()
 	rodape_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	rodape_box.add_theme_constant_override("separation", 10)
 	rodape_box.anchor_left = 0.0
 	rodape_box.anchor_right = 1.0
-	rodape_box.anchor_top = 0.83
+	rodape_box.anchor_top = 0.82
 	rodape_box.anchor_bottom = 0.92
 	splash.add_child(rodape_box)
 	
 	var barra_center := CenterContainer.new()
 	rodape_box.add_child(barra_center)
 	var barra_bg := Panel.new()
-	barra_bg.custom_minimum_size = Vector2(140, 3)
-	barra_bg.size = Vector2(140, 3)
+	barra_bg.custom_minimum_size = Vector2(156, 4)
+	barra_bg.size = Vector2(156, 4)
 	var sb_bbg := StyleBoxFlat.new()
-	sb_bbg.bg_color = Color(0.10, 0.15, 0.16, 0.85)
+	sb_bbg.bg_color = Color(0.11, 0.14, 0.17, 0.90)
 	sb_bbg.set_corner_radius_all(2)
 	barra_bg.add_theme_stylebox_override("panel", sb_bbg)
 	barra_center.add_child(barra_bg)
 	
 	var barra_fill := Panel.new()
-	barra_fill.size = Vector2(12, 3)
+	barra_fill.size = Vector2(14, 4)
 	var sb_bfill := StyleBoxFlat.new()
-	sb_bfill.bg_color = Color(0.52, 0.88, 0.80, 0.95)
+	sb_bfill.bg_color = Color(0.42, 0.88, 0.78, 0.98)
 	sb_bfill.set_corner_radius_all(2)
-	sb_bfill.shadow_color = Color(0.45, 0.85, 0.76, 0.45)
-	sb_bfill.shadow_size = 6
+	sb_bfill.shadow_color = Color(0.36, 0.84, 0.76, 0.55)
+	sb_bfill.shadow_size = 8
 	barra_fill.add_theme_stylebox_override("panel", sb_bfill)
 	barra_bg.add_child(barra_fill)
 	
@@ -5616,48 +5646,51 @@ func _build_animated_splash() -> void:
 	lbl_status.name = "StatusLabel"
 	lbl_status.text = "iniciando..."
 	lbl_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl_status.add_theme_font_size_override("font_size", 13)
-	lbl_status.add_theme_color_override("font_color", Color(0.57, 0.64, 0.63, 1.0))
+	lbl_status.add_theme_font_size_override("font_size", 12)
+	lbl_status.add_theme_color_override("font_color", Color(0.58, 0.64, 0.68, 1.0))
 	rodape_box.add_child(lbl_status)
 	
 	_raiz_ui.add_child(splash)
 	
-	# 1) Animação de entrada elástica do ícone e do texto "Seja bem-vindo"
-	logo_rect.scale = Vector2(0.72, 0.72)
-	logo_rect.modulate.a = 0.0
+	# 1) Entrada suave elástica
+	icon_mask.scale = Vector2(0.72, 0.72)
+	icon_mask.modulate.a = 0.0
 	lbl_welcome.modulate.a = 0.0
 	rodape_box.modulate.a = 0.0
 	var tw_in := splash.create_tween().set_parallel(true)
-	tw_in.tween_property(logo_rect, "scale", Vector2(1.0, 1.0), 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw_in.tween_property(logo_rect, "modulate:a", 1.0, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw_in.tween_property(lbl_welcome, "modulate:a", 1.0, 0.45).set_delay(0.15).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw_in.tween_property(rodape_box, "modulate:a", 1.0, 0.45).set_delay(0.22)
-	tw_in.tween_property(barra_fill, "size:x", 140.0, 1.65).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tw_in.tween_property(icon_mask, "scale", Vector2(1.0, 1.0), 0.50).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw_in.tween_property(icon_mask, "modulate:a", 1.0, 0.30).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw_in.tween_property(lbl_welcome, "modulate:a", 1.0, 0.42).set_delay(0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw_in.tween_property(rodape_box, "modulate:a", 1.0, 0.40).set_delay(0.18)
+	tw_in.tween_property(barra_fill, "size:x", 156.0, 1.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	
-	# 2) Movimento contínuo de flutuação suave do ícone + rotação do anel orbital + pulsação da aura
-	var tw_float := logo_rect.create_tween().set_loops()
-	tw_float.tween_property(logo_rect, "position:y", 6.0, 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw_float.tween_property(logo_rect, "position:y", 18.0, 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# 2) Levitação suave do ícone + anéis girando em sentidos opostos + respiração da aura
+	var tw_float := icon_mask.create_tween().set_loops()
+	tw_float.tween_property(icon_mask, "position:y", 35.0, 0.80).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw_float.tween_property(icon_mask, "position:y", 45.0, 0.80).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	
-	var tw_aura := aura.create_tween().set_loops().set_parallel(true)
-	tw_aura.tween_property(aura, "scale", Vector2(1.14, 1.14), 0.90).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw_aura.tween_property(anel, "rotation", TAU, 2.6).from(0.0)
-	tw_aura.chain().tween_property(aura, "scale", Vector2(0.92, 0.92), 0.90).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var tw_orb := palco_logo.create_tween().set_loops().set_parallel(true)
+	tw_orb.tween_property(anel_ext, "rotation", TAU, 2.4).from(0.0)
+	tw_orb.tween_property(anel_int, "rotation", -TAU, 3.2).from(0.0)
 	
-	# 3) Animação dos pontinhos "iniciando..."
+	var tw_aura := aura.create_tween().set_loops()
+	tw_aura.tween_property(aura, "scale", Vector2(1.16, 1.16), 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw_aura.tween_property(aura, "scale", Vector2(0.92, 0.92), 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	
+	# 3) Pontinhos "iniciando..."
 	var tw_dots := lbl_status.create_tween().set_loops()
 	tw_dots.tween_callback(func(): lbl_status.text = "iniciando.")
-	tw_dots.tween_interval(0.28)
+	tw_dots.tween_interval(0.26)
 	tw_dots.tween_callback(func(): lbl_status.text = "iniciando..")
-	tw_dots.tween_interval(0.28)
+	tw_dots.tween_interval(0.26)
 	tw_dots.tween_callback(func(): lbl_status.text = "iniciando...")
-	tw_dots.tween_interval(0.32)
+	tw_dots.tween_interval(0.30)
 	
-	# 4) Transição cinematográfica de saída após 1.85 segundos
-	get_tree().create_timer(1.85).timeout.connect(func():
+	# 4) Saída fluida após 1.65s
+	get_tree().create_timer(1.65).timeout.connect(func():
 		if is_instance_valid(splash):
 			splash.pivot_offset = splash.size / 2.0
 			var tw_out := splash.create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-			tw_out.tween_property(splash, "modulate:a", 0.0, 0.45)
-			tw_out.tween_property(splash, "scale", Vector2(1.05, 1.05), 0.45)
+			tw_out.tween_property(splash, "modulate:a", 0.0, 0.38)
+			tw_out.tween_property(splash, "scale", Vector2(1.04, 1.04), 0.38)
 			tw_out.chain().tween_callback(splash.queue_free))

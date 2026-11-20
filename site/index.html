@@ -434,8 +434,8 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
     var a=el("a","botao grande","Baixar o Launcher ↓");a.href="/baixar";acoes.appendChild(a);
     var apk=m.android;
     if(apk&&seguro(apk.url)){
-      var a_apk=el("a","botao","Baixar para Celular (APK v"+(apk.versao||"1.26")+") 📱");
-      a_apk.href="Zenith.apk?v="+(apk.versao||"1.26");
+      var a_apk=el("a","botao","Baixar para Celular (APK v"+(apk.versao||"1.27")+") 📱");
+      a_apk.href="Zenith.apk?v="+(apk.versao||"1.27");
       a_apk.setAttribute("download","Zenith.apk");
       acoes.appendChild(a_apk);
     } else {
@@ -475,8 +475,8 @@ footer{color:var(--muted2);font-size:.88rem;padding:34px 0 56px;border-top:1px s
       cta_pc.href = "#baixar";
       cta.appendChild(cta_pc);
       if(apk&&seguro(apk.url)){
-        var cta_mob = el("a","botao fantasma","Versão Celular (APK v"+(apk.versao||"1.26")+") 📱");
-        cta_mob.href = "Zenith.apk?v="+(apk.versao||"1.26");
+        var cta_mob = el("a","botao fantasma","Versão Celular (APK v"+(apk.versao||"1.27")+") 📱");
+        cta_mob.href = "Zenith.apk?v="+(apk.versao||"1.27");
         cta_mob.setAttribute("download","Zenith.apk");
         cta_mob.style.marginLeft = "8px";
         cta.appendChild(cta_mob);

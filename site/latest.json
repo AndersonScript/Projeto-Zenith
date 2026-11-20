@@ -32,12 +32,12 @@
     "tamanho": 12782131
   },
   "android": {
-    "versao": "1.26",
+    "versao": "1.27",
     "arquivo": "Zenith.apk",
-    "url": "https://projeto-zenith-five.vercel.app/Zenith.apk?v=1.26",
-    "sha256": "16e02a2dc4ded0a41dca66d0e73b6a76eaeb40d623e30f89d0935f2fb0048b9e",
-    "tamanho": 46904798,
-    "notas": "Zenith v1.26: Modo Meio (Palco 3D no topo estilo YouTube) + Modo Janelinha PiP (Miniplayer flutuante redimensionavel com imã de borda), adaptacao universal de tela sem vazamento 3D, splash animada fiel ao print original, movimentos 100% suaves sem gestos aleatorios forcados."
+    "url": "https://projeto-zenith-five.vercel.app/Zenith.apk?v=1.27",
+    "sha256": "b630aee08f97592783f2689dc682a540772c3877453db042058d14cbca9034c9",
+    "tamanho": 46908894,
+    "notas": "Zenith v1.27 (Etapa 1): Tela inicial unica com animacao limpa (sem borda quadrada preta), Boas-vindas apenas no primeiro uso (salvo em disco), voz nativa pt-BR restaurada no Android, API Gemini corrigida (gemini-2.5-flash + gemini-3.5-flash-lite) e Modo Janelinha PiP sempre acima do chat."
   },
   "vrm": {
     "versao": "1.0",
@@ -47,6 +47,6 @@
     "tamanho": 16383668,
     "notas": "Avatar 3D oficial humanoide VRM da Zenith criado pelo Anderson com textura personalizada esmeralda steampunk."
   },
-  "version": "1.26",
-  "notes": "Zenith v1.26: Modo Meio (Palco 3D estilo YouTube) + Modo Janelinha PiP (Miniplayer redimensionavel), reenquadramento adaptativo sem vazamento 3D, splash animada fiel ao original, movimentos suaves sem dar de ombros aleatorio."
+  "version": "1.27",
+  "notes": "Zenith v1.27 (Etapa 1): Tela inicial unica animada, Boas-vindas so na primeira vez, voz pt-BR no Android corrigida, API Gemini atualizada e Modo Janelinha PiP acima do chat."
 }
